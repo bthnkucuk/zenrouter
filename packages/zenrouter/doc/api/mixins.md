@@ -284,9 +284,11 @@ Use this mixin when you need to protect forms with unsaved changes, prevent inte
 mixin RouteGuard on RouteTarget {
   // PopScope.canPop — true = free pop, false = intercept then popGuard (default false)
   bool get canPop;
+  bool canPopWith(covariant CoordinatorCore coordinator); // defaults to canPop
 
   // ListenableMixin so PopScope rebuilds when canPop changes
   ListenableMixin? get canPopListenable;
+  ListenableMixin? canPopListenableWith(covariant CoordinatorCore coordinator);
 
   // Return true to allow pop, false to prevent
   FutureOr<bool> popGuard();
@@ -425,10 +427,19 @@ Enables composable, reusable pop-guard logic by chaining multiple `GuardRule` in
 ```dart
 // Base class for creating guard rules
 abstract class GuardRule<T extends RouteTarget> {
-  bool canPop(covariant T route); // default true
-  ListenableMixin? canPopListenable(covariant T route);
-  FutureOr<bool?> guard(
-    covariant Coordinator coordinator,
+  // Non-coordinator (route-only)
+  bool canPopRule(covariant T route); // default true
+  ListenableMixin? canPopListenableRule(covariant T route);
+  FutureOr<bool?> guardRule(covariant T route); // default null
+
+  // Coordinator-aware (defaults to the non-With methods)
+  bool canPopRuleWith(CoordinatorCore coordinator, covariant T route);
+  ListenableMixin? canPopListenableRuleWith(
+    CoordinatorCore coordinator,
+    covariant T route,
+  );
+  FutureOr<bool?> guardRuleWith(
+    CoordinatorCore coordinator,
     covariant T route,
   );
 }
@@ -438,8 +449,8 @@ mixin RouteGuardRule<T extends RouteTarget> on RouteTarget
     implements RouteGuard {
   List<GuardRule> get guardRules;
 
-  // canPop / canPopListenable derived from rules
-  // Automatically implements RouteGuard.popGuardWith()
+  // canPop / canPopListenable / popGuard → non-With rule methods
+  // canPopWith / canPopListenableWith / popGuardWith → With rule methods
 }
 ```
 
@@ -451,20 +462,22 @@ mixin RouteGuardRule<T extends RouteTarget> on RouteTarget
 
 If every rule returns `null` (or the list is empty), the pop is allowed.
 
+Override `guardRule` when the decision only needs the route. Override `guardRuleWith` when you need a coordinator (dialogs, shared app state).
+
 #### Example: Unsaved Changes Rule
 
 ```dart
 class UnsavedChangesRule extends GuardRule<AppRoute> {
   @override
-  bool canPop(AppRoute route) =>
+  bool canPopRule(AppRoute route) =>
       route is! EditableRoute || !route.hasUnsavedChanges;
 
   @override
-  ListenableMixin? canPopListenable(AppRoute route) =>
+  ListenableMixin? canPopListenableRule(AppRoute route) =>
       route is EditableRoute ? route.dirty.toListenableMixin() : null;
 
   @override
-  FutureOr<bool?> guard(
+  FutureOr<bool?> guardRuleWith(
     Coordinator coordinator,
     AppRoute route,
   ) async {

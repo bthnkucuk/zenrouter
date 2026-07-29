@@ -291,7 +291,7 @@ class ContinueGuardRule extends GuardRule<GuardRuleTestRoute> {
   const ContinueGuardRule();
 
   @override
-  FutureOr<bool?> guard(
+  FutureOr<bool?> guardRuleWith(
     covariant Coordinator coordinator,
     covariant GuardRuleTestRoute route,
   ) => null;
@@ -301,7 +301,7 @@ class AllowGuardRule extends GuardRule<GuardRuleTestRoute> {
   const AllowGuardRule();
 
   @override
-  FutureOr<bool?> guard(
+  FutureOr<bool?> guardRuleWith(
     covariant Coordinator coordinator,
     covariant GuardRuleTestRoute route,
   ) => true;
@@ -311,7 +311,7 @@ class BlockGuardRule extends GuardRule<GuardRuleTestRoute> {
   const BlockGuardRule();
 
   @override
-  FutureOr<bool?> guard(
+  FutureOr<bool?> guardRuleWith(
     covariant Coordinator coordinator,
     covariant GuardRuleTestRoute route,
   ) => false;
@@ -324,7 +324,7 @@ class CountingGuardRule extends GuardRule<GuardRuleTestRoute> {
   int callCount = 0;
 
   @override
-  FutureOr<bool?> guard(
+  FutureOr<bool?> guardRuleWith(
     covariant Coordinator coordinator,
     covariant GuardRuleTestRoute route,
   ) {
@@ -340,7 +340,7 @@ class AsyncGuardRule extends GuardRule<GuardRuleTestRoute> {
   final Duration delay;
 
   @override
-  Future<bool?> guard(
+  Future<bool?> guardRuleWith(
     covariant Coordinator coordinator,
     covariant GuardRuleTestRoute route,
   ) async {

@@ -92,7 +92,9 @@ Intercepts pop operations so you can block or confirm navigation away.
 ```dart
 mixin RouteGuard on RouteTarget {
   bool get canPop;                                    // PopScope.canPop (default false)
+  bool canPopWith(CoordinatorCore coordinator);       // defaults to canPop
   ListenableMixin? get canPopListenable;              // reactive canPop invalidation
+  ListenableMixin? canPopListenableWith(CoordinatorCore coordinator);
   FutureOr<bool> popGuard();                              // return false to block pop
   FutureOr<bool> popGuardWith(CoordinatorCore coordinator); // same, with coordinator access
 }
@@ -100,8 +102,9 @@ mixin RouteGuard on RouteTarget {
 
 - `canPop: true` → platform pops freely (no `popGuard` for that gesture).
 - `canPop: false` → intercept, then `popGuard` decides.
-- Programmatic `pop` always consults `popGuard`.
+- Programmatic `pop` always consults `popGuard` / `popGuardWith`.
 - Set `canPopListenable` (e.g. `dirty.toListenableMixin()` on a Flutter `ValueNotifier` / `ChangeNotifier`) so `PopScope` updates when state changes.
+- Use `*With` when the hint/listenable depends on coordinator state.
 
 **Example — reactive unsaved changes:**
 
@@ -159,10 +162,11 @@ Sync [canPop](./MIXIN.md#routeguard) composition:
 
 | API | Meaning |
 |:----|:--------|
-| `GuardRule.canPop(route)` | `false` forces intercept; default `true` |
+| `GuardRule.canPopRule(route)` | `false` forces intercept; default `true` |
+| `GuardRule.canPopRuleWith(c, route)` | Coordinator-aware; defaults to `canPopRule` |
 | `RouteGuardRule.canPop` | `true` only if every rule returns `true` |
-| `GuardRule.canPopListenable(route)` | Optional `ListenableMixin` |
-| `RouteGuardRule.canPopListenable` | Single listenable, or `ListenableMixin.merge` |
+| `GuardRule.canPopListenableRule(route)` | Optional `ListenableMixin` |
+| `GuardRule.guardRule(route)` / `guardRuleWith(c, route)` | Chain decision; default `null` |
 
 ---
 

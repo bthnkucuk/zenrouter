@@ -1,3 +1,48 @@
+## 2.3.0
+
+### ⚠️ Breaking Changes
+
+- **`GuardRule` contract renamed** (via `zenrouter_core` 2.2.0). The 2.1.0 / 2.2.0 methods are removed:
+
+  | Removed | Replacement |
+  |---------|-------------|
+  | `canPop(route)` | `canPopRule(route)` / `canPopRuleWith(coordinator, route)` |
+  | `canPopListenable(route)` | `canPopListenableRule(route)` / `canPopListenableRuleWith(coordinator, route)` |
+  | `guard(coordinator, route)` | `guardRule(route)` / `guardRuleWith(coordinator, route)` |
+
+  Use route-only methods when no coordinator is needed; override `*With` for dialogs / app state. Each `*With` defaults to its non-`With` counterpart.
+
+  ```dart
+  // Before
+  class UnsavedChangesRule extends GuardRule<AppRoute> {
+    @override
+    bool canPop(AppRoute route) => !route.hasUnsavedChanges;
+
+    @override
+    FutureOr<bool?> guard(Coordinator c, AppRoute route) async =>
+        showDiscardDialog(c.navigator.context);
+  }
+
+  // After
+  class UnsavedChangesRule extends GuardRule<AppRoute> {
+    @override
+    bool canPopRule(AppRoute route) => !route.hasUnsavedChanges;
+
+    @override
+    FutureOr<bool?> guardRuleWith(Coordinator c, AppRoute route) async =>
+        showDiscardDialog(c.navigator.context);
+  }
+  ```
+
+### 🚀 New Features
+
+- **`RouteGuard.canPopWith` / `canPopListenableWith`**: Coordinator-aware PopScope hints; `NavigationStack` prefers these when a coordinator is present.
+- **`RouteGuardRule.popGuard`**: Runs the `guardRule` chain without a coordinator.
+
+### 📖 Documentation
+
+- Recipe / example / mixins API updated for the dual `guardRule` / `guardRuleWith` API.
+
 ## 2.2.0
 
 ### 🚀 New Features

@@ -435,8 +435,8 @@ abstract class CoordinatorCore<T extends RouteUri> extends Equatable
         return await path.pop(result);
       }
     }
-
-    return false;
+    
+    return null;
   }
 
   /// Triggers a rebuild of the coordinator.

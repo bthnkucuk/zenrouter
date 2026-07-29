@@ -205,12 +205,21 @@ class _NavigationStackState<T extends RouteTarget>
 
     if (guard == null) return buildScope(true);
 
-    final canPopListenable = guard.canPopListenable;
-    if (canPopListenable == null) return buildScope(guard.canPop);
+    final coordinator = widget.coordinator;
+    final canPopListenable = switch (coordinator) {
+      null => guard.canPopListenable,
+      final c => guard.canPopListenableWith(c),
+    };
+    bool resolveCanPop() => switch (coordinator) {
+      null => guard.canPop,
+      final c => guard.canPopWith(c),
+    };
+
+    if (canPopListenable == null) return buildScope(resolveCanPop());
 
     return ListenableBuilder(
       listenable: canPopListenable.toFlutterListenable(),
-      builder: (context, _) => buildScope(guard.canPop),
+      builder: (context, _) => buildScope(resolveCanPop()),
     );
   }
 

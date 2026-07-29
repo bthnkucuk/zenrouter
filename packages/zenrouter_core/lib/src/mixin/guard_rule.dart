@@ -4,7 +4,6 @@ import 'package:zenrouter_core/src/coordinator/base.dart';
 import 'package:zenrouter_core/src/internal/reactive.dart';
 import 'package:zenrouter_core/src/mixin/guard.dart';
 import 'package:zenrouter_core/src/mixin/target.dart';
-import 'package:zenrouter_core/src/mixin/uri.dart';
 
 /// Base class for composable pop-guard logic.
 ///
@@ -107,7 +106,7 @@ mixin RouteGuardRule<T extends RouteTarget> on RouteTarget
   bool get canPop => guardRules.every((rule) => rule.canPopRule(this as T));
 
   @override
-  bool canPopWith(covariant CoordinatorCore<RouteUri> coordinator) =>
+  bool canPopWith(covariant CoordinatorCore coordinator) =>
       guardRules.every((rule) => rule.canPopRuleWith(coordinator, this as T));
 
   @override
@@ -125,9 +124,7 @@ mixin RouteGuardRule<T extends RouteTarget> on RouteTarget
   }
 
   @override
-  ListenableMixin? canPopListenableWith(
-    covariant CoordinatorCore<RouteUri> coordinator,
-  ) {
+  ListenableMixin? canPopListenableWith(covariant CoordinatorCore coordinator) {
     final listenables = <ListenableMixin>[
       for (final rule in guardRules)
         if (rule.canPopListenableRuleWith(coordinator, this as T)

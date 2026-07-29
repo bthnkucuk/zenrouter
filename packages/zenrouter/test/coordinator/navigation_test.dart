@@ -449,7 +449,7 @@ void main() {
       expect(coordinator.root.stack.last, home);
     });
 
-    test('returns false when stack cannot be popped (length 1)', () async {
+    test('returns null when stack cannot be popped (length 1)', () async {
       // Setup: Home only
       coordinator.push(HomeRoute());
       await Future.delayed(Duration.zero);
@@ -459,7 +459,7 @@ void main() {
       // tryPop should return false (nothing to pop)
       final result = await coordinator.tryPop();
 
-      expect(result, isFalse);
+      expect(result, isNull);
       expect(coordinator.root.stack.length, 1);
     });
   });

@@ -153,19 +153,19 @@ class UnsavedChangesRule extends GuardRule<AppRoute> {
   const UnsavedChangesRule();
 
   @override
-  bool canPop(AppRoute route) {
+  bool canPopRule(AppRoute route) {
     if (route is! EditableRoute) return true;
     return !route.hasUnsavedChanges;
   }
 
   @override
-  ListenableMixin? canPopListenable(AppRoute route) {
+  ListenableMixin? canPopListenableRule(AppRoute route) {
     if (route is! EditableRoute) return null;
     return route.dirty.toListenableMixin();
   }
 
   @override
-  Future<bool?> guard(
+  Future<bool?> guardRuleWith(
     covariant GuardRulesCoordinator coordinator,
     AppRoute route,
   ) async {
@@ -181,19 +181,19 @@ class UploadInProgressRule extends GuardRule<AppRoute> {
   const UploadInProgressRule();
 
   @override
-  bool canPop(AppRoute route) {
+  bool canPopRule(AppRoute route) {
     if (route is! UploadableRoute) return true;
     return !route.isUploading;
   }
 
   @override
-  ListenableMixin? canPopListenable(AppRoute route) {
+  ListenableMixin? canPopListenableRule(AppRoute route) {
     if (route is! UploadableRoute) return null;
     return route.uploading.toListenableMixin();
   }
 
   @override
-  Future<bool?> guard(
+  Future<bool?> guardRuleWith(
     covariant GuardRulesCoordinator coordinator,
     AppRoute route,
   ) async {
@@ -211,10 +211,10 @@ class ConfirmLeaveRule extends GuardRule<AppRoute> {
   const ConfirmLeaveRule();
 
   @override
-  bool canPop(AppRoute route) => false;
+  bool canPopRule(AppRoute route) => false;
 
   @override
-  Future<bool?> guard(
+  Future<bool?> guardRuleWith(
     covariant GuardRulesCoordinator coordinator,
     AppRoute route,
   ) async {
@@ -229,7 +229,7 @@ class GuardAuditRule extends GuardRule<AppRoute> {
   const GuardAuditRule();
 
   @override
-  Future<bool?> guard(
+  Future<bool?> guardRuleWith(
     covariant GuardRulesCoordinator coordinator,
     AppRoute route,
   ) async {

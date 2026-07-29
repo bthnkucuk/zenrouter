@@ -257,20 +257,24 @@ class ShopIndexRoute extends AppRoute with RouteRedirectRule<AppRoute> {
 
 Composable pop guards applied via `RouteGuardRule<T>` mixin on a route.
 
+Prefer **route-only** methods when no coordinator is needed. Override the
+`With` variants when dialogs or shared app state require a coordinator
+(defaults delegate to the non-`With` methods).
+
 ### Writing a rule
 
 ```dart
 class UnsavedChangesRule extends GuardRule<AppRoute> {
   @override
-  bool canPop(AppRoute route) =>
+  bool canPopRule(AppRoute route) =>
       route is! EditableRoute || !route.hasUnsavedChanges;
 
   @override
-  ListenableMixin? canPopListenable(AppRoute route) =>
+  ListenableMixin? canPopListenableRule(AppRoute route) =>
       route is EditableRoute ? route.dirty.toListenableMixin() : null;
 
   @override
-  Future<bool?> guard(
+  Future<bool?> guardRuleWith(
     covariant AppCoordinator coordinator,
     AppRoute route,
   ) async {
@@ -282,18 +286,18 @@ class UnsavedChangesRule extends GuardRule<AppRoute> {
 }
 ```
 
-| `bool?` (async `guard`) | Meaning |
-|:------------------------|:--------|
+| `bool?` (`guardRule` / `guardRuleWith`) | Meaning |
+|:----------------------------------------|:--------|
 | `null` | Pass to next rule |
 | `true` | Allow pop; stops chain |
 | `false` | Block pop; stops chain |
 
-| Sync `canPop` | Meaning |
-|:--------------|:--------|
+| Sync `canPopRule` | Meaning |
+|:------------------|:--------|
 | `true` (default) | This rule does not force intercept |
 | `false` | Force `PopScope` intercept |
 
-Rules are evaluated in list order; first non-`null` `guard` result wins. If every rule returns `null`, the pop is allowed. `RouteGuardRule.canPop` is `true` only when every rule's `canPop` is `true`.
+Rules are evaluated in list order; first non-`null` result wins. If every rule returns `null`, the pop is allowed. `RouteGuardRule.canPop` is `true` only when every rule's `canPopRule` is `true`.
 
 ### Applying rules to a route
 

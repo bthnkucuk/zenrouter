@@ -47,6 +47,12 @@ mixin RouteGuard on RouteTarget {
   /// so the navigation stack rebuilds `PopScope`.
   bool get canPop => false;
 
+  /// Coordinator-aware variant of [canPop].
+  ///
+  /// Defaults to [canPop]. Override when the sync pop hint depends on
+  /// coordinator state.
+  bool canPopWith(covariant CoordinatorCore coordinator) => canPop;
+
   /// A [ListenableMixin] that triggers `PopScope` rebuilds when [canPop] may
   /// have changed.
   ///
@@ -62,6 +68,13 @@ mixin RouteGuard on RouteTarget {
   /// ListenableMixin? get canPopListenable => dirty.toListenableMixin();
   /// ```
   ListenableMixin? get canPopListenable => null;
+
+  /// Coordinator-aware variant of [canPopListenable].
+  ///
+  /// Defaults to [canPopListenable].
+  ListenableMixin? canPopListenableWith(
+    covariant CoordinatorCore coordinator,
+  ) => canPopListenable;
 
   /// Called when the route is about to be popped.
   ///

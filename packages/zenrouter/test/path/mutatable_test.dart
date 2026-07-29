@@ -807,8 +807,8 @@ void main() {
 
       final result = await coordinator.tryPop();
 
-      /// Cannot pop since the route stack is has only one element
-      expect(result, false);
+      /// Return null for pop since the route stack is has only one element
+      expect(result, null);
     });
 
     test('notifies listeners after successful pop', () async {

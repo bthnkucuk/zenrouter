@@ -46,15 +46,18 @@ Highlights from that file:
 ```dart
 class UnsavedChangesRule extends GuardRule<AppRoute> {
   @override
-  bool canPop(AppRoute route) =>
+  bool canPopRule(AppRoute route) =>
       route is! EditableRoute || !route.hasUnsavedChanges;
 
   @override
-  ListenableMixin? canPopListenable(AppRoute route) =>
+  ListenableMixin? canPopListenableRule(AppRoute route) =>
       route is EditableRoute ? route.dirty.toListenableMixin() : null;
 
   @override
-  Future<bool?> guard(covariant GuardRulesCoordinator c, AppRoute route) async {
+  Future<bool?> guardRuleWith(
+    covariant GuardRulesCoordinator c,
+    AppRoute route,
+  ) async {
     if (route is! EditableRoute || !route.hasUnsavedChanges) return null;
     return showDiscardDialog(c.navigator.context);
   }
@@ -81,12 +84,12 @@ class UploadRoute extends AppRoute
 
 | Sync API | Meaning |
 |----------|---------|
-| `canPop → true` | This rule does not force `PopScope` intercept |
-| `canPop → false` | Force intercept; then run `guard` |
-| `canPopListenable` | Rebuild `PopScope` when dirty/uploading flips |
+| `canPopRule → true` | This rule does not force `PopScope` intercept |
+| `canPopRule → false` | Force intercept; then run `guardRule` / `guardRuleWith` |
+| `canPopListenableRule` | Rebuild `PopScope` when dirty/uploading flips |
 | Empty / all-`null` guards | Pop is **allowed** |
 
-`RouteGuardRule.canPop` is `true` only when **every** rule returns `canPop == true`.
+`RouteGuardRule.canPop` is `true` only when **every** rule returns `canPopRule == true`.
 `canPopListenable` merges all rule listenables via `ListenableMixin.merge`.
 
 ### Example walkthrough — `UploadRoute`
@@ -108,12 +111,9 @@ test('UnsavedChangesRule continues when route is not editable', () async {
   final rule = const UnsavedChangesRule();
   final route = HomeRoute(); // not EditableRoute
 
-  expect(rule.canPop(route), isTrue);
-  expect(rule.canPopListenable(route), isNull);
-  expect(
-    await rule.guard(_FakeCoordinator(), route),
-    isNull,
-  );
+  expect(rule.canPopRule(route), isTrue);
+  expect(rule.canPopListenableRule(route), isNull);
+  expect(await rule.guardRule(route), isNull);
 });
 
 test('UnsavedChangesRule blocks when dirty and dialog declines', () async {
@@ -124,14 +124,15 @@ test('UnsavedChangesRule blocks when dirty and dialog declines', () async {
 ## Common gotchas
 
 1. **Order matters** — put cheap / hard blockers first (upload), soft prompts later (unsaved).
-2. **`canPop` vs `popGuard`** — programmatic `coordinator.pop()` always runs `guard`, even when `canPop` is `true`.
+2. **`canPop` vs `popGuard`** — programmatic `coordinator.pop()` always runs `guardRuleWith`, even when `canPop` is `true`.
 3. **Use `toListenableMixin()`** — Flutter `ValueNotifier` is not a `ListenableMixin`; wrap it:
    ```dart
    dirty.toListenableMixin()
    ```
-4. **Rebuild PopScope** — without `canPopListenable`, flipping dirty will not update system-back behavior until the page is rebuilt.
+4. **Rebuild PopScope** — without `canPopListenable` / `canPopListenableRule`, flipping dirty will not update system-back behavior until the page is rebuilt.
 5. **Don’t put `RouteGuard` on login-only flows that should never intercept** — or override `canPop => true` and return `true` from `guard`.
 6. **Entry protection is redirect, not guard** — auth “can I open this?” belongs in `RouteRedirect` / `RedirectRule`.
+7. **Coordinator-optional rules** — override `guardRule` for route-only checks; override `guardRuleWith` when you need navigator context or app state.
 
 ## When to use what
 

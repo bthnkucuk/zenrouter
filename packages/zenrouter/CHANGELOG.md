@@ -56,6 +56,15 @@ path.push(EditRoute()); // ✅
 Two *equal but distinct* instances — `[/edit, /settings, /edit]` — are supported, and
 fixing them is what this release is about.
 
+### Fixed
+
+- **Navigation on a path is serialized** (via `zenrouter_core` 3.0.0). A push arriving
+  while an async pop guard was open — a deep link landing during a "discard unsaved
+  changes?" dialog — used to be the route that got popped when the user confirmed,
+  bypassing its own guard. Pushes whose redirects resolved at different speeds could
+  also land out of call order. Both are fixed; see the `zenrouter_core` changelog for
+  the details and for the two cases that deliberately bypass the queue.
+
 ### Migration
 
 Most projects need **no code changes**. See

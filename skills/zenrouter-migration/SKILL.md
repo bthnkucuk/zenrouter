@@ -136,6 +136,22 @@ rg -n "firstWhere.*==|indexWhere.*toUri\(\)|\.toUri\(\)\.toString\(\)" lib/
 
 Treat these as *optional* cleanups; only touch them if the user asked for cleanup.
 
+### Cleanup opportunity — delete navigation-ordering workarounds
+
+Path mutations are now serialized: they apply one at a time, in call order. Projects
+that hit the old races often papered over them with delays or manual sequencing between
+navigation calls.
+
+```bash
+rg -n "Future.delayed.*(push|pop|navigate)|await Future.delayed" lib/
+```
+
+If a delay exists only to make two navigation calls land in the right order, it can go.
+Leave delays that serve animation or UX purposes.
+
+Also drop guards that re-checked what got popped: `pop` now removes the route its guard
+approved, never one that raced to the top.
+
 ### If `push` now asserts "already on this path"
 
 Cause: the **same route instance** is pushed onto one stack twice.

@@ -51,6 +51,31 @@
   names the route and the fix. Debug-only; two *equal but distinct* instances remain
   fully supported.
 
+### Fixed
+
+- **Stack mutations are serialized.** Every mutation on a `StackMutatable` awaits
+  something before it touches the stack — `RouteRedirect.resolve` on the push side,
+  `RouteGuard.popGuard` on the pop side. A mutation arriving during one of those gaps
+  used to observe, and corrupt, a stack that was mid-flight. Two concrete failures:
+
+  - **A push landing during an async pop guard stole the pop.** With `[A, B]` on the
+    stack and `B`'s guard showing a "discard unsaved changes?" dialog, a route `C`
+    pushed by a deep link while the dialog was open would be the one removed when the
+    user confirmed — leaving `B` in place and never consulting `C`'s own guard, even if
+    that guard refused every pop.
+
+  - **Pushes could land out of order.** `push(profile)` followed by `push(settings)`
+    ended up with `profile` on top whenever `profile`'s redirect (an auth check, say)
+    took longer than `settings`'s.
+
+  Mutations now run one at a time, in call order. Two cases deliberately bypass the
+  queue so timing is unchanged where there is nothing to protect: an unguarded `pop`
+  (no guard means no await gap, so bursts of fire-and-forget pops still apply
+  synchronously) and the first mutation when nothing else is in flight.
+
+  `push` enqueues only its mutating region — never its result future, which settles on
+  pop and would otherwise hold the queue for as long as the route is on screen.
+
 ### Migration
 
 Most projects need **no code changes**. See

@@ -106,6 +106,20 @@ forward the key unchanged and need no action.
   and clears its stack-path binding, instead of leaving it bound.
 - **Duplicate routes in one stack are now legal.** `[/edit, /settings, /edit]` renders
   two independent pages, as it always should have.
+- **Navigation on a path is serialized.** Mutations now apply one at a time, in call
+  order. If you fire several without awaiting them, they still all apply — just in
+  sequence rather than racing. Two things follow:
+  - A push arriving while an async pop guard is open no longer steals that pop. This
+    was a real hole: a deep link landing during a "discard unsaved changes?" dialog
+    would be the route removed when the user confirmed, and its own guard was never
+    consulted even if it refused every pop.
+  - `push(a)` then `push(b)` now always ends with `b` on top, even when `a`'s redirect
+    (an auth check, say) is slower than `b`'s.
+
+  Timing is unchanged where there is nothing to protect: an unguarded `pop` has no
+  await gap and still applies synchronously, and the first mutation starts immediately
+  when nothing else is in flight. If you have a workaround that inserted delays between
+  navigation calls to keep them ordered, you can drop it.
 
 ### One instance, one entry
 

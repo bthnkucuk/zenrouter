@@ -16,6 +16,15 @@ mixin StackMutatable<T extends RouteTarget> on StackPath<T>
     T? target = await RouteRedirect.resolve(element, coordinator);
     if (target == null) return null;
 
+    assert(
+      !_stack.any((route) => identical(route, target)),
+      'Route instance $target is already on this path.\n'
+      'A RouteTarget owns one path binding and one result completer, so it maps '
+      'to exactly one stack entry. Pushing it twice makes both push futures '
+      'share a completer and unbinds the surviving entry.\n'
+      'Push a new instance instead: two equal-but-distinct routes are supported.',
+    );
+
     target.isPopByPath = false;
     target.bindStackPath(this);
     _stack.add(target);

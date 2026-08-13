@@ -107,9 +107,9 @@ forward the key unchanged and need no action.
 - **Duplicate routes in one stack are now legal.** `[/edit, /settings, /edit]` renders
   two independent pages, as it always should have.
 
-### Known limitation
+### One instance, one entry
 
-Pushing the **same instance** twice still trips Flutter's duplicate-key assert:
+Pushing the **same instance** twice was never supported:
 
 ```dart
 final route = EditRoute();
@@ -118,13 +118,19 @@ path.push(route); // ❌ one instance cannot own two stack entries
 ```
 
 A `RouteTarget` carries a single path binding and a single result completer, so it maps
-to exactly one stack entry. This was already true before 3.0.0. Push a new instance per
-entry:
+to exactly one stack entry — pushing it twice makes both `push` futures share a
+completer and unbinds the surviving entry. This was already true before 3.0.0, but it
+surfaced as an opaque `_dependents.isEmpty` crash from Flutter. `push` now asserts on it
+directly, naming the route and the fix. Push a new instance per entry:
 
 ```dart
 path.push(EditRoute());
 path.push(EditRoute()); // ✅
 ```
+
+Note the distinction: two **equal but distinct** instances (`[/edit, /settings, /edit]`)
+are fully supported — that is exactly what this release fixes. Only literal instance
+reuse is rejected.
 
 ---
 

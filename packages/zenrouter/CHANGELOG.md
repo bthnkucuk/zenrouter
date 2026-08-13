@@ -37,12 +37,24 @@
   Every built-in transition (`.material`, `.cupertino`, `.sheet`, `.dialog`, `.none`)
   forwards the key unchanged, so they need no action.
 
-#### Known limitation
+#### One instance, one entry
 
-Pushing the *same route instance* twice (`path.push(route); path.push(route);`) still
-trips Flutter's duplicate-key assert — one instance cannot own two stack entries, since
-it carries a single path binding and a single result completer. This was already the
-case before 3.0.0. Push a new instance per entry.
+Pushing the *same route instance* twice was never supported — one instance carries a
+single path binding and a single result completer, so it cannot own two stack entries.
+It used to fail as an opaque Flutter crash; `zenrouter_core` 3.0.0 now catches it in
+`push` with a message that names the route. Push a new instance per entry:
+
+```dart
+final route = EditRoute();
+path.push(route);
+path.push(route);       // ❌ asserts, with an explanation
+
+path.push(EditRoute());
+path.push(EditRoute()); // ✅
+```
+
+Two *equal but distinct* instances — `[/edit, /settings, /edit]` — are supported, and
+fixing them is what this release is about.
 
 ### Migration
 

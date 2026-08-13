@@ -41,6 +41,16 @@
   `false`, so the redundant instance is correctly discarded and its stack-path binding
   cleared.
 
+### Added
+
+- **`push` now asserts that the route instance is not already on the path.** A
+  `RouteTarget` owns one path binding and one result completer, so it maps to exactly one
+  stack entry. Pushing the same instance twice made both `push` futures share a
+  completer and unbound the surviving entry — it previously surfaced as an opaque
+  `_dependents.isEmpty` crash from Flutter. It now fails immediately with a message that
+  names the route and the fix. Debug-only; two *equal but distinct* instances remain
+  fully supported.
+
 ### Migration
 
 Most projects need **no code changes**. See

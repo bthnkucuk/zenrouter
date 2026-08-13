@@ -136,16 +136,9 @@ rg -n "firstWhere.*==|indexWhere.*toUri\(\)|\.toUri\(\)\.toString\(\)" lib/
 
 Treat these as *optional* cleanups; only touch them if the user asked for cleanup.
 
-### If the build now asserts on duplicate page keys
+### If `push` now asserts "already on this path"
 
-Symptom after upgrading:
-
-```
-'package:flutter/src/widgets/framework.dart': Failed assertion: '_dependents.isEmpty'
-```
-or a duplicated-page-key assert from `Navigator`.
-
-Cause: the **same route instance** is on one stack twice.
+Cause: the **same route instance** is pushed onto one stack twice.
 
 ```dart
 final route = EditRoute();
@@ -154,15 +147,19 @@ path.push(route); // ❌ one instance cannot own two stack entries
 ```
 
 A `RouteTarget` carries one path binding and one result completer, so it maps to exactly
-one entry. Fix by constructing a fresh instance per push:
+one entry — pushing it twice makes both `push` futures share a completer and unbinds the
+surviving entry. Before 3.0.0 this surfaced as an opaque Flutter crash
+(`'_dependents.isEmpty': is not true`); it is now caught at the push site. Fix by
+constructing a fresh instance per push:
 
 ```dart
 path.push(EditRoute());
 path.push(EditRoute()); // ✅
 ```
 
-Two *equal but distinct* instances (`[/edit, /settings, /edit]`) are fine and were fixed
-by this release — do not "fix" those by deduplicating the stack.
+**Do not "fix" this by deduplicating the stack.** Two *equal but distinct* instances
+(`[/edit, /settings, /edit]`) are legal and are exactly what this release repaired — the
+assert fires only on literal instance reuse (`identical`), never on value equality.
 
 ---
 

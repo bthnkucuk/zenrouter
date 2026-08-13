@@ -215,6 +215,26 @@ mixin StackMutatable<T extends RouteTarget> on StackPath<T>
     }
   }
 
+  /// Removes [element] itself, matching on identity rather than value.
+  ///
+  /// [remove] matches with `==`, so on a stack that legitimately holds the same
+  /// route twice — `[/edit, /settings, /edit]` — it removes the *first* equal
+  /// entry, which is not necessarily the one the caller means. Callers that
+  /// know exactly which live entry left, such as the [Navigator] reporting a
+  /// removed page, must target it by identity.
+  ///
+  /// A no-op when [element] is not on the stack, so it is safe to call for a
+  /// route that some other path already removed.
+  void removeIdentical(T element, {bool discard = true}) {
+    final index = _stack.indexWhere((route) => identical(route, element));
+    if (index == -1) return;
+
+    _stack.removeAt(index);
+    if (discard) element.onDiscard();
+    element.clearStackPath();
+    notifyListeners();
+  }
+
   @override
   Future<void> navigate(T route) => _enqueue(() => _navigateLocked(route));
 

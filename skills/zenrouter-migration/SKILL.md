@@ -149,6 +149,11 @@ rg -n "Future.delayed.*(push|pop|navigate)|await Future.delayed" lib/
 If a delay exists only to make two navigation calls land in the right order, it can go.
 Leave delays that serve animation or UX purposes.
 
+Similarly, `Navigator.of(context).pop()` from a widget now syncs the path correctly.
+Projects that funnelled every pop through `coordinator.pop()` only to avoid the old
+mismatch can stop; `Navigator` pops, swipe back and predictive back all remove the entry
+whose page actually closed.
+
 Also drop guards that re-checked what got popped: `pop` now removes the route its guard
 approved, never one that raced to the top.
 

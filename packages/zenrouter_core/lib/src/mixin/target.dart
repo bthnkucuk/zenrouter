@@ -84,18 +84,18 @@ abstract class RouteTarget extends Equatable {
 
   /// Called when the route is popped from the navigation stack.
   ///
-  /// This is invoked during navigation cleanup. The route is removed
-  /// from its path and its result is completed.
+  /// This is invoked during navigation cleanup: the route's result is completed
+  /// and its path binding is cleared.
+  ///
+  /// Removing the route from its path is deliberately *not* done here. A route
+  /// popped by the platform used to take itself off the path, matching with
+  /// `==` — which removes the first equal entry, not necessarily this one. On a
+  /// stack that legitimately repeats a route, `[/edit, /settings, /edit]`, that
+  /// took out the wrong entry. The path now learns which entry left from
+  /// `Navigator.onDidRemovePage`, which names the exact page.
   @mustCallSuper
   void onDidPop(Object? result, covariant CoordinatorCore? coordinator) {
     onDiscard();
-
-    if (isPopByPath == false && _path?.stack.contains(this) == true) {
-      if (_path case StackMutatable path) {
-        path.remove(this, discard: false);
-      }
-    }
-
     clearStackPath();
   }
 

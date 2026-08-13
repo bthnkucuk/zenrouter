@@ -287,7 +287,21 @@ class _NavigationStackState<T extends RouteTarget>
       key: widget.navigatorKey,
       pages: _pages,
       observers: _observers,
-      onDidRemovePage: (page) {},
+      // The Navigator removed a page on its own — an imperative
+      // `Navigator.pop`, an interactive swipe back, a predictive back. Flutter
+      // requires the pages list to stop including that page, so sync the path.
+      //
+      // Pages are keyed by route instance, so the key names the exact entry
+      // that left; matching by value would pick the wrong one on a stack that
+      // repeats a route. Removals we initiated ourselves are declarative and
+      // never reach here, and the call is a no-op if the route is already gone.
+      onDidRemovePage: (page) {
+        final key = page.key;
+        if (key is! ObjectKey) return;
+        if (key.value case final T route) {
+          widget.path.removeIdentical(route, discard: false);
+        }
+      },
       restorationScopeId: switch (widget.restorationId) {
         null => null,
         final restorationId => '${restorationId}_navigator',

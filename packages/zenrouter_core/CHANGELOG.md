@@ -76,6 +76,33 @@
   `push` enqueues only its mutating region — never its result future, which settles on
   pop and would otherwise hold the queue for as long as the route is on screen.
 
+- **A route removed by the `Navigator` no longer takes the wrong entry off the path.**
+  `RouteTarget.onDidPop` used to remove the route from its path with `==`, which removes
+  the *first* equal entry. On a stack that legitimately repeats a route — now that equal
+  routes are supported at all — that was the wrong one:
+
+  ```
+  before                     [home, editA, settings, editB]
+  editB closes itself via Navigator.pop()
+  after (broken)             [home, settings, editB]
+  ```
+
+  `editA` left the path while `editB` stayed on it with its binding cleared, so the
+  stack disagreed with the screen about which route was on top. Reachable from anything
+  that pops outside the coordinator: a shared widget calling `Navigator.of(context).pop()`,
+  an interactive swipe back, predictive back. (The Android system back button was never
+  affected — it routes through `popRoute` → `tryPop`, an ordinary programmatic pop.)
+
+  `onDidPop` now only completes the result and clears the binding. Which entry left is
+  reported by `Navigator.onDidRemovePage`, whose page key names the exact route instance.
+
+### Added — API
+
+- **`StackMutatable.removeIdentical`** removes a specific live entry, matching on
+  identity instead of `==`. Use it over `remove` whenever the caller knows which
+  instance left and the stack may hold equal routes. It is a no-op if the route is
+  already gone, so it is safe to call twice.
+
 ### Migration
 
 Most projects need **no code changes**. See

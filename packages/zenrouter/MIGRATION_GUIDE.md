@@ -106,6 +106,14 @@ forward the key unchanged and need no action.
   and clears its stack-path binding, instead of leaving it bound.
 - **Duplicate routes in one stack are now legal.** `[/edit, /settings, /edit]` renders
   two independent pages, as it always should have.
+- **Popping outside the coordinator now syncs correctly.** If a widget calls
+  `Navigator.of(context).pop()` — a shared close button, a form that does not know about
+  zenrouter — or the user swipes back, the path used to remove the first *value-equal*
+  route rather than the one whose page actually closed. On `[/edit, /settings, /edit]`
+  that took out the wrong `/edit` and left the path disagreeing with the screen. Page
+  keys now name the exact instance, so the right entry leaves. Nothing to change; if you
+  routed such widgets through `coordinator.pop()` purely to dodge this, that is no longer
+  necessary.
 - **Navigation on a path is serialized.** Mutations now apply one at a time, in call
   order. If you fire several without awaiting them, they still all apply — just in
   sequence rather than racing. Two things follow:

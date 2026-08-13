@@ -58,6 +58,18 @@ fixing them is what this release is about.
 
 ### Fixed
 
+- **`NavigationStack` now implements `onDidRemovePage`.** It was an empty callback, so
+  when the `Navigator` removed a page on its own the path was synced indirectly, by the
+  route taking itself off the stack with `==` — which removes the first equal entry.
+  With `[/edit, /settings, /edit]` on the stack, closing the top `/edit` through
+  `Navigator.of(context).pop()` removed the *first* `/edit` instead, leaving the path
+  disagreeing with the screen about which route was on top.
+
+  The page key identifies the exact route instance, so the removal is now targeted.
+  Affects anything that pops outside the coordinator — a shared widget calling
+  `Navigator.of(context).pop()`, an interactive swipe back, predictive back. The Android
+  system back button was never affected; it goes through `popRoute` → `tryPop`.
+
 - **Navigation on a path is serialized** (via `zenrouter_core` 3.0.0). A push arriving
   while an async pop guard was open — a deep link landing during a "discard unsaved
   changes?" dialog — used to be the route that got popped when the user confirmed,

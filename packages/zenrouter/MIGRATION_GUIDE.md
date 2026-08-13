@@ -2,7 +2,129 @@
 
 This guide outlines the changes and steps required to migrate to the latest version of `zenrouter`.
 
-**Latest:** [2.1.0](#210-coordinatorview--layout-builder-api) — `CoordinatorView`, `CoordinatorLayoutBuilder`, layout builder signature updates.
+**Latest:** [3.0.0](#300-equality-contract-repair) — `hashCode` contract repair, `internalProps` removal, identity-based page keys.
+
+---
+
+## 3.0.0: Equality contract repair
+
+**TL;DR — most projects need no code changes.** Run your test suite; if it is green,
+you are done. The two things that can bite you are listed under
+[Do I need to change anything?](#do-i-need-to-change-anything) below.
+
+### What was wrong
+
+`Equatable.hashCode` mixed in `internalProps`, and `RouteTarget.internalProps` returned
+`[runtimeType, _path, _onResult]`. `_onResult` is a `Completer` created fresh per
+instance, so two routes that compared **equal** always hashed **differently**:
+
+```dart
+final a = ProductRoute('42');
+final b = ProductRoute('42');
+
+a == b;                   // true
+a.hashCode == b.hashCode; // false  ← violates Dart's core contract
+```
+
+Dart requires `a == b ⇒ a.hashCode == b.hashCode`. Breaking it silently corrupts every
+hash-based lookup:
+
+```dart
+{a}.contains(b);            // false — but a == b
+<Route, int>{a: 1}[b];      // null  — but a == b
+```
+
+It also hid a second defect. `NavigationStack` keyed pages with `ValueKey(route)`, so an
+ordinary stack like `[/edit, /settings, /edit]` produced two `==`-equal page keys.
+Flutter's `Navigator` reserves page keys in a `Set<Key>`; because the hash codes
+disagreed, the duplicate-key assert never fired and the collision went unnoticed.
+
+### What changed
+
+| Before | After |
+|---|---|
+| `hashCode` = `mapPropsToHashCode(internalProps) ^ mapPropsToHashCode(props)` | `hashCode` = `runtimeType.hashCode ^ mapPropsToHashCode(props)` |
+| `Equatable.internalProps` (public, "do not override") | **removed** |
+| `RouteTarget.deepEquals` = `hashCode == other.hashCode` | `identical(this, other)` |
+| Page key = `ValueKey(route)` (by value) | `ObjectKey(route)` (by instance) |
+| `PageCallback` `routeKey` param: `ValueKey<T>` | `ObjectKey` |
+
+### Do I need to change anything?
+
+**1. Did you override `internalProps`?**
+
+It was documented as "**Do not override**", so almost certainly not. If you did, delete
+the override — and move anything that genuinely affects route identity into `props`:
+
+```dart
+// Before
+class OrderRoute extends RouteTarget with RouteUnique {
+  @override
+  List<Object?> get props => [orderId];
+
+  @override
+  List<Object?> get internalProps => [tenantId]; // ❌ no longer exists
+}
+
+// After
+class OrderRoute extends RouteTarget with RouteUnique {
+  @override
+  List<Object?> get props => [orderId, tenantId]; // ✅ identity lives in props
+}
+```
+
+**2. Did you annotate a `pageBuilder` parameter explicitly?**
+
+Lambdas are unaffected — the type is inferred:
+
+```dart
+StackTransition(
+  pageBuilder: (context, routeKey, child) => MaterialPage(key: routeKey, child: child),
+  builder: (context) => const MyScreen(),
+);
+```
+
+Only a written-out `ValueKey<T>` annotation breaks:
+
+```dart
+// Before
+Page<void> buildPage(BuildContext context, ValueKey<AppRoute> routeKey, Widget child) => ...
+// After
+Page<void> buildPage(BuildContext context, ObjectKey routeKey, Widget child) => ...
+```
+
+All built-in transitions (`.material`, `.cupertino`, `.sheet`, `.dialog`, `.none`)
+forward the key unchanged and need no action.
+
+### Behaviour you may notice
+
+- **Routes now work correctly in `Set` / `Map`.** If you wrote a workaround for routes
+  "not being found" in a collection, you can delete it.
+- **Equal-but-distinct layout instances.** `RouteLayoutParent` / `RouteLayout` override
+  `==` by layout key. `deepEquals` is now identity, so passing a *new* equal layout
+  instance to `navigate` / `pushOrMoveToTop` correctly discards the redundant instance
+  and clears its stack-path binding, instead of leaving it bound.
+- **Duplicate routes in one stack are now legal.** `[/edit, /settings, /edit]` renders
+  two independent pages, as it always should have.
+
+### Known limitation
+
+Pushing the **same instance** twice still trips Flutter's duplicate-key assert:
+
+```dart
+final route = EditRoute();
+path.push(route);
+path.push(route); // ❌ one instance cannot own two stack entries
+```
+
+A `RouteTarget` carries a single path binding and a single result completer, so it maps
+to exactly one stack entry. This was already true before 3.0.0. Push a new instance per
+entry:
+
+```dart
+path.push(EditRoute());
+path.push(EditRoute()); // ✅
+```
 
 ---
 
@@ -352,6 +474,12 @@ FutureOr<AppRoute?> parseRouteFromUri(Uri uri) { ... }
 ```
 
 ## Internal Properties (`internalProps`)
+
+> **⚠️ Superseded — `internalProps` was removed in 3.0.0.** This section describes a
+> 2.0-era change and is kept for historical reference only. Folding per-instance state
+> into `hashCode` turned out to *break* Dart's equality contract rather than improve it,
+> which is exactly what made sets of routes unreliable. See
+> [3.0.0: Equality contract repair](#300-equality-contract-repair).
 
 A new property `internalProps` has been introduced to the `Equatable` base class (and consequently `RouteTarget`) to handling deep comparison and hashing of internal state.
 

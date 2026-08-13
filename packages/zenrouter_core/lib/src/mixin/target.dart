@@ -67,9 +67,6 @@ abstract class RouteTarget extends Equatable {
   /// When `false`, pop was initiated externally (back button, system).
   bool isPopByPath = false;
 
-  @override
-  List<Object?> get internalProps => [runtimeType, _path, _onResult];
-
   /// Properties used for equality comparison.
   ///
   /// Override to include route parameters. Two routes are equal
@@ -77,8 +74,13 @@ abstract class RouteTarget extends Equatable {
   @override
   List<Object?> get props => [];
 
-  /// Checks deep equality with another route.
-  bool deepEquals(RouteTarget other) => hashCode == other.hashCode;
+  /// Whether [other] is this very same route instance.
+  ///
+  /// Two routes can be `==` (same type, same [props]) while still being
+  /// distinct live instances with their own path binding and result completer.
+  /// The framework uses this to tell "the route already on the stack" apart
+  /// from "a fresh, redundant instance that has to be discarded".
+  bool deepEquals(RouteTarget other) => identical(this, other);
 
   /// Called when the route is popped from the navigation stack.
   ///

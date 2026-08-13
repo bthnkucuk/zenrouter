@@ -1,3 +1,6 @@
+## 3.0.0
+- **BREAKING**: Update dependency to `zenrouter: ^3.0.0`
+
 ## 2.0.0
 - **BREAKING**: Update dependency to `zenrouter: ^2.0.0`
 

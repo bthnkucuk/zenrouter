@@ -1,3 +1,55 @@
+## 3.0.0
+
+### ⚠️ Breaking Changes
+
+- **Page keys are now identity-based** (via `zenrouter_core` 3.0.0). `NavigationStack`
+  used to key each page with `ValueKey(route)`, which keys by **value**. Pushing the
+  same route twice — a perfectly ordinary stack like `[/edit, /settings, /edit]` —
+  produced two pages whose keys were `==`-equal.
+
+  This never surfaced because the broken `Equatable.hashCode` (see `zenrouter_core`
+  3.0.0) gave those keys different hash codes, so Flutter's
+  `Navigator._debugCheckDuplicatedPageKeys` — which reserves keys in a `Set<Key>` —
+  never saw the collision. With the hash contract repaired, the duplicate is real and
+  must be fixed at the source.
+
+  Pages are now keyed with `ObjectKey(route)`, which keys on the route **instance**.
+  Since zenrouter's routes are live objects with one instance per stack entry, this
+  gives every entry a distinct page identity.
+
+- **`PageCallback` signature changed**: the `routeKey` parameter is now `ObjectKey`
+  instead of `ValueKey<T>`.
+
+  ```dart
+  // Unaffected — the type is inferred:
+  StackTransition(
+    pageBuilder: (context, routeKey, child) => MaterialPage(key: routeKey, child: child),
+    builder: (context) => const MyScreen(),
+  );
+
+  // Affected — an explicit annotation:
+  // Before
+  Page<void> buildPage(BuildContext context, ValueKey<AppRoute> routeKey, Widget child) => ...
+  // After
+  Page<void> buildPage(BuildContext context, ObjectKey routeKey, Widget child) => ...
+  ```
+
+  Every built-in transition (`.material`, `.cupertino`, `.sheet`, `.dialog`, `.none`)
+  forwards the key unchanged, so they need no action.
+
+#### Known limitation
+
+Pushing the *same route instance* twice (`path.push(route); path.push(route);`) still
+trips Flutter's duplicate-key assert — one instance cannot own two stack entries, since
+it carries a single path binding and a single result completer. This was already the
+case before 3.0.0. Push a new instance per entry.
+
+### Migration
+
+Most projects need **no code changes**. See
+[MIGRATION_GUIDE.md](https://github.com/definev/zenrouter/blob/main/packages/zenrouter/MIGRATION_GUIDE.md#300-equality-contract-repair)
+for the full checklist.
+
 ## 2.3.0
 
 ### ⚠️ Breaking Changes

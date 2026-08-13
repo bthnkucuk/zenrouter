@@ -18,6 +18,10 @@
 flutter pub add zenrouter
 ```
 
+> **Upgrading from 2.x?** 3.0.0 repairs a broken `==` / `hashCode` contract on routes.
+> Most projects need no code changes — see the
+> [Migration Guide](https://github.com/definev/zenrouter/blob/main/packages/zenrouter/MIGRATION_GUIDE.md#300-equality-contract-repair).
+
 ---
 
 ## Architecture Overview
@@ -463,6 +467,7 @@ class MyApp extends StatelessWidget {
 - [Coordinator as Route Module](https://github.com/definev/zenrouter/blob/main/packages/zenrouter/doc/recipes/coordinator-as-routemodule.md)
 
 ### Migration Guides
+- [Upgrading zenrouter versions](https://github.com/definev/zenrouter/blob/main/packages/zenrouter/MIGRATION_GUIDE.md) — version-to-version breaking changes ([3.0.0](https://github.com/definev/zenrouter/blob/main/packages/zenrouter/MIGRATION_GUIDE.md#300-equality-contract-repair))
 - [From go_router](https://github.com/definev/zenrouter/blob/main/packages/zenrouter/doc/migration/from-go-router.md)
 - [From auto_route](https://github.com/definev/zenrouter/blob/main/packages/zenrouter/doc/migration/from-auto-route.md)
 - [From Navigator 1.0/2.0](https://github.com/definev/zenrouter/blob/main/packages/zenrouter/doc/migration/from-navigator.md)

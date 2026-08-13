@@ -97,8 +97,9 @@ typedef RestoratableConverterConstructor<T extends Object> =
 ///
 /// **Parameters:**
 /// - `context`: The build context for the page.
-/// - `routeKey`: A unique key identifying this route instance. Typically derived
-///   from the route's identity.
+/// - `routeKey`: An [ObjectKey] wrapping the route *instance*. It keys on
+///   identity rather than value, so pushing two equal routes (e.g. `/edit`
+///   twice) still yields two distinct pages for the [Navigator].
 /// - `child`: The widget content to be wrapped by the page.
 ///
 /// **Returns:**
@@ -119,7 +120,7 @@ typedef RestoratableConverterConstructor<T extends Object> =
 typedef PageCallback<T> =
     Page<void> Function(
       BuildContext context,
-      ValueKey<T> routeKey,
+      ObjectKey routeKey,
       Widget child,
     );
 

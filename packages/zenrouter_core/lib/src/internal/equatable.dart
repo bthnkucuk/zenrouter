@@ -148,16 +148,9 @@ String mapPropsToString(Type runtimeType, List<Object?> props) {
 /// ## Why ZenRouter has its own Equatable
 ///
 /// While similar to the `equatable` package, this implementation:
-/// - Integrates with ZenRouter's internal state ([internalProps])
 /// - Provides [compareWith] for controlled equality checks
+/// - Performs deep comparison of collection [props]
 /// - Avoids external dependencies
-///
-/// ## props vs internalProps
-///
-/// | Property       | Purpose                                    | When to override? |
-/// |----------------|-------------------------------------------|-------------------|
-/// | [props]        | User-defined equality (route parameters)   | **Yes** - always  |
-/// | [internalProps]| Framework state (path, completer, etc.)    | **Never**         |
 ///
 /// **Example:**
 /// ```dart
@@ -170,8 +163,6 @@ String mapPropsToString(Type runtimeType, List<Object?> props) {
 ///   // Include all parameters that make this route unique
 ///   @override
 ///   List<Object?> get props => [productId, variant];
-///
-///   // Do NOT override internalProps - framework manages it
 /// }
 /// ```
 ///
@@ -181,24 +172,13 @@ String mapPropsToString(Type runtimeType, List<Object?> props) {
 /// 1. Same [runtimeType] (e.g., both are `ProductRoute`)
 /// 2. Same [props] values (e.g., same `productId`)
 ///
-/// [internalProps] are NOT compared in [compareWith] but ARE used for:
-/// - Hash code generation
-/// - Internal framework identity checks
+/// [hashCode] is derived from exactly those two inputs, so the
+/// `a == b` implies `a.hashCode == b.hashCode` contract always holds and
+/// [Equatable] instances are safe to use as `Set` elements or `Map` keys.
+/// Framework state (path binding, result completer, ...) is deliberately kept
+/// out of both, since mutable per-instance state would break that contract.
 abstract class Equatable {
   const Equatable();
-
-  // coverage:ignore-start
-  /// Framework-managed properties for internal identity.
-  ///
-  /// **Do not override.** This is used by ZenRouter to track:
-  /// - Runtime type
-  /// - Path binding (`_path`)
-  /// - Result completer (`_onResult`)
-  ///
-  /// These are combined with [props] for hash code generation but are
-  /// NOT compared in [compareWith] / `==` operator.
-  List<Object?> get internalProps => [];
-  // coverage:ignore-end
 
   /// User-defined properties for equality comparison.
   ///
@@ -252,8 +232,7 @@ abstract class Equatable {
   }
 
   @override
-  int get hashCode =>
-      mapPropsToHashCode(internalProps) ^ mapPropsToHashCode(props);
+  int get hashCode => runtimeType.hashCode ^ mapPropsToHashCode(props);
 
   @override
   String toString() {

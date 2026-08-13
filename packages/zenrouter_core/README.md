@@ -33,7 +33,7 @@ zenrouter_core provides the **core abstractions** for implementing arbitrary rou
 
 ```yaml
 dependencies:
-  zenrouter_core: ^2.0.0
+  zenrouter_core: ^3.0.0
 ```
 
 ## Architecture

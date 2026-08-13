@@ -51,16 +51,15 @@ class CollectionPropEquatable extends eq.Equatable {
   List<Object?> get props => [items, metadata];
 }
 
-class InternalPropEquatable extends eq.Equatable {
-  const InternalPropEquatable(this.id, {this.internalTag = ''});
+/// A field deliberately left out of [eq.Equatable.props] must affect neither
+/// `==` nor `hashCode`.
+class UntrackedFieldEquatable extends eq.Equatable {
+  const UntrackedFieldEquatable(this.id, {this.untracked = ''});
   final String id;
-  final String internalTag;
+  final String untracked;
 
   @override
   List<Object?> get props => [id];
-
-  @override
-  List<Object?> get internalProps => [internalTag];
 }
 
 void main() {
@@ -592,12 +591,14 @@ void main() {
     test('RouteTarget hashCode uses mapPropsToHashCode', () {
       final route1 = TestRoute('home');
       final route2 = TestRoute('home');
+      final route3 = TestRoute('profile');
 
-      // Hash codes include instance-specific fields (_path, _onResult)
-      // so different instances will have different hash codes
+      // Hash codes are derived from runtimeType + props only, so two
+      // separate instances that compare equal also hash equal.
       expect(route1 == route2, isTrue);
+      expect(route1.hashCode, equals(route2.hashCode));
       // Different props should contribute to different hashes
-      expect(route1.hashCode, isNot(equals(route2.hashCode)));
+      expect(route1.hashCode, isNot(equals(route3.hashCode)));
     });
 
     test('MultiPropRoute equality works correctly', () {
@@ -821,14 +822,28 @@ void main() {
     });
 
     group('hashCode', () {
-      test('combines internalProps and props', () {
-        final a = InternalPropEquatable('id1', internalTag: 'tagA');
-        final b = InternalPropEquatable('id1', internalTag: 'tagB');
+      test('honours the a == b implies a.hashCode == b.hashCode contract', () {
+        final a = UntrackedFieldEquatable('id1', untracked: 'tagA');
+        final b = UntrackedFieldEquatable('id1', untracked: 'tagB');
 
         // Same props → equal via ==
         expect(a == b, isTrue);
-        // Different internalProps → different hashCode
-        expect(a.hashCode, isNot(equals(b.hashCode)));
+        // ...so the hash codes must match, regardless of untracked state.
+        expect(a.hashCode, equals(b.hashCode));
+      });
+
+      test('equal routes resolve to the same Set/Map bucket', () {
+        final a = TestRoute('1');
+        final b = TestRoute('1');
+
+        expect(a == b, isTrue);
+        expect({a}.contains(b), isTrue);
+        expect(<RouteTarget, String>{a: 'value'}[b], equals('value'));
+      });
+
+      test('distinguishes types that share identical props', () {
+        expect(SimpleEquatable('Alice', 30) == NullPropEquatable('Alice'), isFalse);
+        expect(EmptyEquatable().hashCode, isNot(equals(TestRoute('').hashCode)));
       });
 
       test('is consistent across calls', () {
@@ -882,25 +897,34 @@ void main() {
       });
     });
 
-    group('internalProps', () {
-      test('defaults to empty list', () {
-        final a = SimpleEquatable('Alice', 30);
-        expect(a.internalProps, isEmpty);
-      });
+    group('untracked fields', () {
+      test('do not affect equality comparison', () {
+        final a = UntrackedFieldEquatable('id1', untracked: 'tagA');
+        final b = UntrackedFieldEquatable('id1', untracked: 'tagB');
 
-      test('does not affect equality comparison', () {
-        final a = InternalPropEquatable('id1', internalTag: 'tagA');
-        final b = InternalPropEquatable('id1', internalTag: 'tagB');
-
-        // compareWith only compares props, not internalProps
+        // compareWith only compares props
         expect(a == b, isTrue);
       });
 
-      test('does affect hashCode', () {
-        final a = InternalPropEquatable('id1', internalTag: 'tagA');
-        final b = InternalPropEquatable('id1', internalTag: 'tagB');
+      test('do not affect hashCode either', () {
+        final a = UntrackedFieldEquatable('id1', untracked: 'tagA');
+        final b = UntrackedFieldEquatable('id1', untracked: 'tagB');
 
-        expect(a.hashCode, isNot(equals(b.hashCode)));
+        expect(a.hashCode, equals(b.hashCode));
+      });
+
+      test('framework state on RouteTarget stays out of hashCode', () {
+        final a = TestRoute('1');
+        final b = TestRoute('1');
+
+        // Each RouteTarget owns a fresh result completer and mutable pop
+        // bookkeeping. That per-instance state must not perturb the hash of
+        // an otherwise equal route.
+        a.onDiscard();
+        a.isPopByPath = true;
+
+        expect(a == b, isTrue);
+        expect(a.hashCode, equals(b.hashCode));
       });
     });
   });

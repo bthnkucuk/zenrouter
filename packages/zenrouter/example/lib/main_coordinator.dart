@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' show log;
 
 import 'package:flutter/material.dart';
 import 'package:zenrouter/zenrouter.dart';
@@ -43,7 +44,21 @@ class HomeLayout extends AppRoute with RouteLayout<AppRoute>, RouteTransition {
   @override
   Widget build(AppCoordinator coordinator, BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Home'), backgroundColor: Colors.blue),
+      appBar: PreferredSize(
+        preferredSize: Size.fromHeight(kToolbarHeight),
+        child: ListenableBuilder(
+          listenable: coordinator.tabIndexed,
+          builder: (context, child) => AppBar(
+            title: Text(switch (coordinator.tabIndexed.activeIndex) {
+              0 => 'Feed',
+              1 => 'Profile',
+              2 => 'Settings',
+              _ => 'Home',
+            }, style: TextStyle(color: Colors.white)),
+            backgroundColor: Colors.blue,
+          ),
+        ),
+      ),
       body: buildPath(coordinator),
     );
   }
@@ -76,30 +91,22 @@ class TabBarLayout extends AppRoute with RouteLayout<AppRoute> {
           // Tab content (IndexedStack is built by RouteLayout)
           Expanded(child: buildPath(coordinator)),
           // Tab bar
-          Container(
-            color: Colors.grey[200],
-            child: ListenableBuilder(
-              listenable: path,
-              builder: (context, child) => Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _TabButton(
-                    label: 'Feed',
-                    isActive: path.activeIndex == 0,
-                    onTap: () => coordinator.push(FeedTabLayout()),
-                  ),
-                  _TabButton(
-                    label: 'Profile',
-                    isActive: path.activeIndex == 1,
-                    onTap: () => coordinator.push(ProfileTab()),
-                  ),
-                  _TabButton(
-                    label: 'Settings',
-                    isActive: path.activeIndex == 2,
-                    onTap: () => coordinator.push(SettingsTab()),
-                  ),
-                ],
-              ),
+          ListenableBuilder(
+            listenable: path,
+            builder: (context, child) => BottomNavigationBar(
+              items: [
+                BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Feed'),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.person),
+                  label: 'Profile',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.settings),
+                  label: 'Settings',
+                ),
+              ],
+              currentIndex: path.activeIndex,
+              onTap: (index) => coordinator.tabIndexed.goToIndexed(index),
             ),
           ),
         ],
@@ -243,6 +250,10 @@ class SettingsTab extends AppRoute with RouteQueryParameters {
 
   @override
   Widget build(AppCoordinator coordinator, BuildContext context) {
+    // The lazy demo's other half: with `lazy: true` this fires the first time
+    // the tab is opened rather than at startup, and the query buttons below do
+    // not fire it again — `selectorBuilder` redraws one line instead.
+    log('build SettingsTab');
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -455,18 +466,20 @@ class AccountSettings extends AppRoute {
 
   @override
   Widget build(AppCoordinator coordinator, BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        const Text(
-          'Account Settings',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 16),
-        const ListTile(title: Text('Email')),
-        const ListTile(title: Text('Password')),
-        const ListTile(title: Text('Delete Account')),
-      ],
+    return Material(
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          const Text(
+            'Account Settings',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+          const ListTile(title: Text('Email')),
+          const ListTile(title: Text('Password')),
+          const ListTile(title: Text('Delete Account')),
+        ],
+      ),
     );
   }
 }
@@ -480,18 +493,20 @@ class PrivacySettings extends AppRoute {
 
   @override
   Widget build(AppCoordinator coordinator, BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        const Text(
-          'Privacy Settings',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 16),
-        const ListTile(title: Text('Data Privacy')),
-        const ListTile(title: Text('Location Services')),
-        const ListTile(title: Text('Analytics')),
-      ],
+    return Material(
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          const Text(
+            'Privacy Settings',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+          const ListTile(title: Text('Data Privacy')),
+          const ListTile(title: Text('Location Services')),
+          const ListTile(title: Text('Analytics')),
+        ],
+      ),
     );
   }
 }
@@ -623,7 +638,7 @@ class AppCoordinator extends Coordinator<AppRoute> with CoordinatorDebug {
         FeedTabLayout(),
         ProfileTab(),
         SettingsTab(),
-      ])..bindLayout(TabBarLayout.new);
+      ], lazy: true)..bindLayout(TabBarLayout.new);
 
   late final NavigationPath<AppRoute> feedTabStack = NavigationPath.createWith(
     label: 'feed-nested',
@@ -697,51 +712,6 @@ class Login extends AppRoute {
         child: TextButton(
           onPressed: () => coordinator.replace(FeedTab()),
           child: Text('Go to Feed'),
-        ),
-      ),
-    );
-  }
-}
-
-// ============================================================================
-// Helper Widgets
-// ============================================================================
-
-class _TabButton extends StatelessWidget {
-  const _TabButton({
-    required this.label,
-    required this.isActive,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool isActive;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          decoration: BoxDecoration(
-            color: isActive ? Colors.blue : Colors.transparent,
-            border: Border(
-              bottom: BorderSide(
-                color: isActive ? Colors.blue : Colors.transparent,
-                width: 2,
-              ),
-            ),
-          ),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-              color: isActive ? Colors.white : Colors.black,
-            ),
-          ),
         ),
       ),
     );

@@ -514,10 +514,17 @@ class _IndexedStackPathBuilderState<T extends RouteUnique>
   /// A null id turns restoration off for that tab, which happens when there is
   /// nothing to key it by (an unlabelled path) or nothing above to restore into
   /// (an app that does not restore at all).
-  Widget _tab(T route) => RestorationScope(
-    restorationId: widget.coordinator.tryResolveRouteId(route),
-    child: route.build(widget.coordinator, context),
-  );
+  Widget _tab(T route) {
+    // Building is what the refresh asked for, so the mark is spent here — in
+    // both the first build and a later one. Leaving it set would have the tab
+    // rebuilt again the next time any other tab is updated.
+    // ignore: invalid_use_of_protected_member
+    route.didRefresh();
+    return RestorationScope(
+      restorationId: widget.coordinator.tryResolveRouteId(route),
+      child: route.build(widget.coordinator, context),
+    );
+  }
 
   /// The children, built once and reused.
   ///
@@ -554,14 +561,23 @@ class _IndexedStackPathBuilderState<T extends RouteUnique>
       ];
     }
 
-    // Reused, except for a tab being shown for the first time: it takes the
-    // place of its placeholder and is kept from then on.
+    // Reused, with two exceptions. A tab being shown for the first time takes
+    // the place of its placeholder and is kept from then on; and a tab whose
+    // route took on new data is built again, or it would go on showing what it
+    // was handed before. `IndexedStack` renders whatever widget it is given, so
+    // reusing the cached one means the screen ignores the update the route
+    // already accepted.
+    List<Widget>? next;
     if (_pending.remove(activeIndex)) {
-      final next = List<Widget>.of(cached!);
+      next = List<Widget>.of(cached!);
       next[activeIndex] = _tab(stack[activeIndex]);
-      return _children = next;
     }
-    return cached!;
+    for (var index = 0; index < stack.length; index++) {
+      if (_pending.contains(index) || !stack[index].needsRefresh) continue;
+      next ??= List<Widget>.of(cached!);
+      next[index] = _tab(stack[index]);
+    }
+    return _children = next ?? cached!;
   }
 
   @override

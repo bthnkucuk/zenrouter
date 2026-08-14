@@ -49,7 +49,7 @@ class AppCoordinator extends Coordinator<AppRoute> with CoordinatorDebug {
   AppRoute parseRouteFromUri(Uri uri) {
     return switch (uri.pathSegments) {
       [] || ['home'] => HomeTab(),
-      ['search'] => SearchTab(),
+      ['search'] => SearchTab(queries: uri.queryParameters),
       ['profile'] => ProfileTab(),
       ['settings'] => SettingsRoute(),
       _ => HomeTab(),
@@ -125,16 +125,51 @@ class HomeTab extends AppRoute {
   }
 }
 
-class SearchTab extends AppRoute {
+/// Carries data rather than being identified by it.
+///
+/// The tab list is fixed, so `/search?q=shoes` is *the search tab*, not a second
+/// one. [RouteQueryParameters] is what says so: queries stay out of the route's
+/// identity, so changing them updates the URL instead of navigating somewhere.
+///
+/// The notifier is also what rebuilds the screen: [updateQueries] redraws the
+/// line that reads the query and nothing else, so the rest of the tab, and its
+/// state, is untouched. Arriving by `navigate` — a link, a deep link — rebuilds
+/// the tab as a whole instead, since a fresh route instance may have changed
+/// anything about it.
+class SearchTab extends AppRoute with RouteQueryParameters {
+  SearchTab({Map<String, String> queries = const {}})
+    : queryNotifier = ValueNotifier(queries);
+
+  @override
+  final ValueNotifier<Map<String, String>> queryNotifier;
+
   @override
   Type get layout => TabLayout;
 
   @override
-  Uri toUri() => Uri.parse('/search');
+  Uri toUri() =>
+      Uri(path: '/search', queryParameters: queries.isEmpty ? null : queries);
 
   @override
   Widget build(AppCoordinator coordinator, BuildContext context) {
-    return const _TabBody(title: 'Search');
+    return _TabBody(
+      title: 'Search',
+      note: selectorBuilder<String?>(
+        selector: (queries) => queries['q'],
+        builder: (context, q) => Text(
+          q == null ? 'no query yet' : 'query: $q',
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+      ),
+      action: TextButton(
+        onPressed: () => updateQueries(
+          coordinator,
+          queries: {'q': 'q${DateTime.now().second}'},
+        ),
+        child: const Text('Search again (new query)'),
+      ),
+    );
   }
 }
 
@@ -180,9 +215,15 @@ class ProfileTab extends AppRoute {
 /// backgrounding the app and returning. The line under the field says which of
 /// the two situations you are in.
 class _TabBody extends StatefulWidget {
-  const _TabBody({required this.title});
+  const _TabBody({required this.title, this.note, this.action});
 
   final String title;
+
+  /// Data the route was handed, as opposed to what identifies it.
+  final Widget? note;
+
+  /// A way to hand it different data.
+  final Widget? action;
 
   @override
   State<_TabBody> createState() => _TabBodyState();
@@ -229,6 +270,11 @@ class _TabBodyState extends State<_TabBody>
             textAlign: TextAlign.center,
             style: const TextStyle(color: Colors.black54),
           ),
+          if (widget.note case final note?) ...[
+            const SizedBox(height: 4),
+            note,
+          ],
+          if (widget.action case final action?) Center(child: action),
           const SizedBox(height: 24),
           Center(
             child: RotationTransition(

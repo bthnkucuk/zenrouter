@@ -216,12 +216,30 @@ class ProfileTab extends AppRoute {
   }
 }
 
-class SettingsTab extends AppRoute {
+/// Carries data rather than being identified by it.
+///
+/// The tab list is fixed, so `/home/tabs/settings?section=privacy` is *the
+/// settings tab*, not a second one. [RouteQueryParameters] is what says so:
+/// queries stay out of the route's identity, so changing one updates the URL
+/// instead of navigating somewhere, and the notifier redraws only the part that
+/// reads it.
+class SettingsTab extends AppRoute with RouteQueryParameters {
+  SettingsTab({Map<String, String> queries = const {}})
+    : queryNotifier = ValueNotifier(queries);
+
+  @override
+  final ValueNotifier<Map<String, String>> queryNotifier;
+
+  String get section => query('section') ?? 'general';
+
   @override
   Type get layout => TabBarLayout;
 
   @override
-  Uri toUri() => Uri.parse('/home/tabs/settings');
+  Uri toUri() => Uri(
+    path: '/home/tabs/settings',
+    queryParameters: queries.isEmpty ? null : queries,
+  );
 
   @override
   Widget build(AppCoordinator coordinator, BuildContext context) {
@@ -231,6 +249,29 @@ class SettingsTab extends AppRoute {
         const Text(
           'Quick Settings',
           style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        // Only this line redraws when a button below changes the section — the
+        // rest of the tab is left alone, along with anything it is holding.
+        // Arriving by `navigate` rebuilds the tab as a whole instead.
+        selectorBuilder<String>(
+          selector: (queries) => queries['section'] ?? 'general',
+          builder: (context, section) => Text(
+            'section: $section',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          children: [
+            for (final next in ['general', 'privacy', 'account'])
+              OutlinedButton(
+                onPressed: () =>
+                    updateQueries(coordinator, queries: {'section': next}),
+                child: Text(next),
+              ),
+          ],
         ),
         const SizedBox(height: 16),
         ElevatedButton(
@@ -622,7 +663,7 @@ class AppCoordinator extends Coordinator<AppRoute> with CoordinatorDebug {
       ['home', 'tabs'] => FeedTab(), // Default to feed tab
       ['home', 'tabs', 'feed'] => FeedTab(),
       ['home', 'tabs', 'profile'] => ProfileTab(),
-      ['home', 'tabs', 'settings'] => SettingsTab(),
+      ['home', 'tabs', 'settings'] => SettingsTab(queries: uri.queryParameters),
       ['home', 'feed', final id] => FeedDetail(id: id),
       ['home', 'profile', 'detail'] => ProfileDetail(),
       // Settings routes - default to general settings

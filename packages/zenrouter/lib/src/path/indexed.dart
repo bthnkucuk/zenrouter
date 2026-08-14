@@ -191,7 +191,19 @@ class IndexedStackPath<T extends RouteTarget> extends StackPath<T>
       route.onDiscard();
     }
 
-    if (index == _activeIndex) return;
+    if (index == _activeIndex) {
+      // Already the active tab, so there is no switch to announce — but it was
+      // just handed new data, and without this nothing tells anyone: not the
+      // renderer, and not the router, which never re-reads the URI and so
+      // leaves the address bar on the old query.
+      //
+      // A distinct instance is what "handed new data" means, and it is the same
+      // test `pushOrMoveToTop` uses for this situation. Being handed *itself* —
+      // which is what resolving a layout does — transfers nothing and stays
+      // silent.
+      if (!indexRoute.deepEquals(route)) notifyListeners();
+      return;
+    }
     await goToIndexed(index);
   }
 

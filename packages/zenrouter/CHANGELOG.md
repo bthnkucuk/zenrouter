@@ -184,6 +184,23 @@ fixing them is what this release is about.
   replaces the old one. Reachable only by using the widget directly; the default layout
   builder resolves the path from the coordinator, where it does not change.
 
+- **A tab shows the data its route was handed, and the URL follows.** A tab list is
+  fixed, so a tab that carries data is the *same* destination with different contents —
+  `/search?q=shoes` is the search tab, not a second one. Navigating to it updated the
+  route and then stopped there: two halves were missing. `IndexedStackPathBuilder` cached
+  its children and never consulted `RouteTarget.needsRefresh`, which `NavigationStack`
+  has honoured since the page-refresh fix; and `IndexedStackPath.activateRoute` returned
+  without notifying when the tab it had just updated was already the active one, so the
+  router never re-read the URI and the address bar kept the old query.
+
+  Only updated tabs are rebuilt — the others are not touched — and a rebuilt tab keeps
+  its widget state, its scroll position and its focus.
+
+  Routes that expose their data through a `ValueNotifier` were already updating their own
+  widgets, `RouteQueryParameters` among them; they now also rebuild in full when handed a
+  fresh instance through `navigate`. `updateQueries` is unaffected and stays the targeted
+  path.
+
 - **Two tabs can hold the same `restorationId` without colliding.** A `NavigationPath`
   gets a restoration namespace from its `Navigator`; an indexed path has no navigator, so
   its tabs shared one — and `restorationId: 'field'` is exactly what a form widget shared

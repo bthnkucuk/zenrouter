@@ -116,8 +116,17 @@ mixin StackMutatable<T extends RouteTarget> on StackPath<T>
 
       final popped = await _pop(result, replacesHistory: true);
       if (popped == null || !popped) return null;
-      // ignore: invalid_use_of_visible_for_testing_member
-      await activeRoute.onResult.future;
+
+      // Settle and release the route that just left, here, rather than waiting
+      // for its page to report the pop. That report is what used to complete
+      // this, so a path nothing renders — a nested layout that is off screen, a
+      // headless coordinator — waited for a frame that never came and the
+      // replacement never landed. It also arrives too late now that the pop and
+      // the push land in one frame: the navigator sees a single page update and
+      // never pops the outgoing page. Doing both here is what the
+      // single-entry branch above already does; neither can happen twice.
+      activeRoute.completeOnResult(result, coordinator, true);
+      activeRoute.onDiscard();
       return _pushReplacing(target);
     }
 

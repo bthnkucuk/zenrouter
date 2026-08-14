@@ -78,6 +78,15 @@
 
 ### Fixed
 
+- **`pushReplacement` lands on a path nothing is rendering.** It waited for the outgoing
+  route's *page* to report its pop before pushing the replacement, and only the widget layer
+  produces that report — so on a path with no mounted renderer (a nested layout that is off
+  screen, a headless coordinator) it waited for a frame that never came: the replacement never
+  landed and the awaiting frame was retained for good. The route it replaces is now settled
+  and released where the pop happens, which is what the single-entry branch beside it already
+  did. That also matters when there *is* a renderer: the pop and the push now land in one
+  frame, so the navigator sees a single page update and never pops the outgoing page itself.
+
 - **An update that transferred nothing is not announced.** `navigate` to a route already
   on the stack notified unconditionally after `onUpdate` — including when it was handed the
   route *itself*, which is what resolving a layout and restoring both do. That rebuilt the

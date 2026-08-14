@@ -104,7 +104,44 @@ MaterialApp.router(
 Debug web builds report a `FlutterError` when the provider is missing, so you will not
 have to discover this by pressing back.
 
-**3. Did you annotate a `pageBuilder` parameter explicitly?**
+**3. Run the app in debug — a new assert may fire on `navigate` / `pushOrMoveToTop`.**
+
+Both match an existing entry by comparing `props`. If `props` omits a field the route is
+identified by, two destinations compare equal and the match silently lands on the wrong
+one — a deep link to `/order/8123` leaving you on `/order/5500`, with the URL corrected
+back. That is now an assert instead of a wrong screen:
+
+```
+navigate matched a route with a different URI.
+  asked for  /order/8123
+  matched    /order/5500
+```
+
+The fix is to list the fields that identify the route — usually the ones interpolated
+into `toUri()`:
+
+```dart
+class OrderRoute extends RouteTarget with RouteUnique {
+  OrderRoute(this.id);
+  final String id;
+
+  @override
+  Uri toUri() => Uri.parse('/order/$id');
+
+  @override
+  List<Object?> get props => [id];   // ← add this
+}
+```
+
+The mirror also asserts: no entry compared equal while one on the stack has the very same
+URI. That means `props` holds per-instance state — a completer, a callback, a timestamp —
+so a route that should move to the top is pushed again. Keep `props` to the values that
+identify the destination.
+
+Query-only differences are not flagged: `RouteQueryParameters` is meant to keep a route's
+identity while its queries change.
+
+**4. Did you annotate a `pageBuilder` parameter explicitly?**
 
 Lambdas are unaffected — the type is inferred:
 

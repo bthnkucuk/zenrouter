@@ -51,6 +51,33 @@
   names the route and the fix. Debug-only; two *equal but distinct* instances remain
   fully supported.
 
+### Added
+
+- **`navigate` and `pushOrMoveToTop` now assert that `props` identifies the
+  destination.** Both find an existing entry with `indexOf`, which compares by value —
+  that is, by `props`. When `props` omits a field the route is identified by, two
+  different destinations compare equal and the match lands on the wrong one, silently:
+
+  ```
+  navigate matched a route with a different URI.
+    asked for  /order/8123
+    matched    /order/5500
+  ```
+
+  A deep link to order 8123 left you on 5500, and the URL was corrected back to match.
+  The mirror is caught too: no entry compares equal while one on the stack carries the
+  very same URI, which means `props` holds per-instance state — a completer, a callback,
+  a timestamp — and a route that should have moved to the top is pushed again.
+
+  Only the **path** is compared for a match. Query strings are excluded on purpose:
+  `RouteQueryParameters` exists so a route keeps its identity while its queries change,
+  and such a match is updated in place rather than being a mistake. The mirror check
+  compares the full URI, since two destinations that differ only by query are legitimately
+  distinct routes.
+
+  Debug-only, stripped in release, no API change. **It can fire on upgrade** — if it
+  does, it has found a real bug; see the migration guide.
+
 ### Fixed
 
 - **Stack mutations are serialized.** Every mutation on a `StackMutatable` awaits

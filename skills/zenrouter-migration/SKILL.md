@@ -60,9 +60,10 @@ dev_dependencies:
 ## 3.0.0 — Equality contract repair
 
 **Expected blast radius: zero for most projects.** This release fixes a broken
-`==` / `hashCode` contract. Bump the versions, run the analyzer, run the tests. Three
-things can actually need work — check them, then stop. The third applies to web targets
-only, and the analyzer will not catch it.
+`==` / `hashCode` contract. Bump the versions, run the analyzer, run the tests. Four
+things can actually need work — check them, then stop. The analyzer catches only the
+first two: the third applies to web targets, and the fourth shows up as a debug assert
+at runtime.
 
 ### What changed
 
@@ -153,6 +154,32 @@ Keep the long form only if something else needs the pieces separately; then add
 `routeInformationProvider: coordinator.routeInformationProvider`.
 
 Debug web builds report a `FlutterError` for this, so a running app will say so too.
+
+### Check 4 — `props` completeness (a new assert may fire)
+
+`navigate` and `pushOrMoveToTop` match an existing entry by comparing `props`. Routes
+that interpolate a field into `toUri()` but leave it out of `props` now assert instead of
+silently landing on the wrong entry.
+
+```bash
+rg -n "Uri toUri\(\)" -A 2 lib/ | rg -n "\$"
+```
+
+For every route whose `toUri()` interpolates something, check that the same field is in
+`props`:
+
+```dart
+Uri toUri() => Uri.parse('/order/$id');
+@override
+List<Object?> get props => [id];   // must include id
+```
+
+An assert firing here is a real bug the release surfaced, not a regression — the app was
+navigating to the wrong screen before. Fix the `props`, do not silence the assert.
+
+The mirror also asserts: `props` containing per-instance state (a completer, a callback,
+a timestamp) makes identical destinations compare unequal, so `pushOrMoveToTop` pushes
+duplicates.
 
 ### Cleanup opportunity — delete Set/Map workarounds
 

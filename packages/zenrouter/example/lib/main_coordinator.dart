@@ -172,6 +172,19 @@ class FeedTab extends AppRoute {
           title: 'Post "profile" will redirect to ProfileDetail',
           onTap: () => coordinator.push(FeedDetail(id: 'profile')),
         ),
+        const SizedBox(height: 24),
+        const Text(
+          'props demo — navigate() matches by props',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        _FeedItem(
+          title: 'Order 5500 (props correct)',
+          onTap: () => coordinator.navigate(OrderDetail(id: '5500')),
+        ),
+        _FeedItem(
+          title: 'Order 8123 (props correct)',
+          onTap: () => coordinator.navigate(OrderDetail(id: '8123')),
+        ),
       ],
     );
   }
@@ -477,6 +490,39 @@ class NotFound extends AppRoute {
   }
 }
 
+/// Reached with `navigate`, which finds an existing entry by comparing `props`.
+///
+/// Try it: open Order 5500, then Order 8123 — or type the URLs directly. Now
+/// comment out `props` below and repeat. Both orders compare equal, so
+/// `navigate` matches the one already on the stack and you stay on 5500 while
+/// the URL says 8123. Debug builds assert with an explanation instead of
+/// leaving you to notice the wrong screen.
+class OrderDetail extends AppRoute {
+  OrderDetail({required this.id});
+
+  final String id;
+
+  @override
+  Type get layout => HomeLayout;
+
+  @override
+  Uri toUri() => Uri.parse('/order/$id');
+
+  // Remove this to see the failure the assert describes.
+  @override
+  List<Object?> get props => [id];
+
+  @override
+  Widget build(AppCoordinator coordinator, BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Order $id')),
+      body: Center(
+        child: Text('Order $id', style: const TextStyle(fontSize: 32)),
+      ),
+    );
+  }
+}
+
 // ============================================================================
 // Coordinator
 // ============================================================================
@@ -545,6 +591,7 @@ class AppCoordinator extends Coordinator<AppRoute> with CoordinatorDebug {
       ['settings', 'account'] => AccountSettings(),
       ['settings', 'privacy'] => PrivacySettings(),
       ['login'] => Login(),
+      ['order', final id] => OrderDetail(id: id),
       // Not found
       _ => NotFound(uri: uri),
     };

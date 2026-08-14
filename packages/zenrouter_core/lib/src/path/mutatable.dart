@@ -160,6 +160,11 @@ mixin StackMutatable<T extends RouteTarget> on StackPath<T>
     target.isPopByPath = false;
     target.bindStackPath(this);
     final index = _stack.indexOf(target);
+    assert(
+      index == -1
+          ? _debugCheckNoMatch('pushOrMoveToTop', target)
+          : _debugCheckMatch('pushOrMoveToTop', _stack[index], target),
+    );
     if (_stack.isNotEmpty && index == _stack.length - 1) {
       final last = _stack.last;
       last.onUpdate(target);
@@ -274,6 +279,57 @@ mixin StackMutatable<T extends RouteTarget> on StackPath<T>
     notifyListeners();
   }
 
+  /// Debug-only check that `props` actually distinguishes routes.
+  ///
+  /// [navigate] and [pushOrMoveToTop] find an existing entry with `indexOf`,
+  /// which compares by value — that is, by `props`. When `props` omits a field
+  /// the route is identified by, two different destinations compare equal and
+  /// the match silently lands on the wrong one: a deep link to `/order/8123`
+  /// leaves you on `/order/5500`, and the URL is corrected back to match.
+  ///
+  /// Routes carry a URI already, so the mistake is detectable: a match whose
+  /// path differs from the target's cannot be the same destination.
+  ///
+  /// Only the path is compared. Query strings are excluded on purpose —
+  /// [RouteQueryParameters] exists so a route keeps its identity while its
+  /// queries change, and such a match is then updated in place rather than
+  /// being a mistake.
+  bool _debugCheckMatch(String operation, T matched, T target) {
+    if (matched is! RouteUri || target is! RouteUri) return true;
+    if (matched.identifier.path == target.identifier.path) return true;
+
+    throw AssertionError(
+      '$operation matched a route with a different URI.\n'
+      '  asked for  ${target.identifier}\n'
+      '  matched    ${matched.identifier}\n'
+      'They compare equal, so `props` does not tell these destinations apart. '
+      'Add the fields that do — usually the ones interpolated into toUri():\n'
+      '  @override\n'
+      '  List<Object?> get props => [id];',
+    );
+  }
+
+  /// Debug-only mirror of [_debugCheckMatch]: no entry compared equal, yet one
+  /// on the stack has the very same URI — queries included, so two genuinely
+  /// different destinations that share a path are not flagged. `props` then
+  /// holds per-instance state, and a route that should have been moved to the
+  /// top is pushed again.
+  bool _debugCheckNoMatch(String operation, T target) {
+    if (target is! RouteUri) return true;
+    for (final route in _stack) {
+      if (route is! RouteUri) continue;
+      if (route.identifier != target.identifier) continue;
+      throw AssertionError(
+        '$operation found no match for ${target.identifier}, but a route with '
+        'that exact URI is already on the stack.\n'
+        'They compare unequal, so `props` holds state that differs per '
+        'instance — a completer, a callback, a timestamp. Keep `props` to the '
+        'values that identify the destination.',
+      );
+    }
+    return true;
+  }
+
   /// Removes a specific route from any position in the stack.
   ///
   /// Unlike [pop], this bypasses guards and operates on any index.
@@ -323,6 +379,7 @@ mixin StackMutatable<T extends RouteTarget> on StackPath<T>
 
     final routeIndex = stack.indexOf(target);
     if (routeIndex != -1) {
+      assert(_debugCheckMatch('navigate', stack[routeIndex], target));
       while (stack.length > routeIndex + 1) {
         final allowPop = await _popLocked(null);
         if (allowPop == null || !allowPop) {

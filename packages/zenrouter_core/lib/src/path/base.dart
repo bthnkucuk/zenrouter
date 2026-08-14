@@ -8,6 +8,7 @@ import 'package:zenrouter_core/src/internal/reactive.dart';
 import 'package:zenrouter_core/src/mixin/guard.dart';
 import 'package:zenrouter_core/src/mixin/redirect.dart';
 import 'package:zenrouter_core/src/mixin/target.dart';
+import 'package:zenrouter_core/src/mixin/uri.dart';
 import 'package:zenrouter_core/src/path/navigatable.dart';
 
 part 'mutatable.dart';

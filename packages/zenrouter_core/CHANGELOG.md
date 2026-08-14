@@ -96,12 +96,35 @@
   `onDidPop` now only completes the result and clears the binding. Which entry left is
   reported by `Navigator.onDidRemovePage`, whose page key names the exact route instance.
 
+- **A declarative stack update no longer completes the result of routes that survive
+  it.** `applyDiff` rebuilt the path as `reset()` plus a `push` per route. `reset` calls
+  `clear`, which completes the result completer of *every* route on the stack — the ones
+  carried over included. Those routes then went back on the stack already completed, so
+  closing one with a value later threw:
+
+  ```
+  Bad state: Future already completed
+  ```
+
+  The trigger is ordinary: any update that inserts a route — a plain append is enough,
+  since the insert-only branch rebuilt the path too — followed by a surviving route
+  returning a value. `applyDiff` now computes the target stack and commits it in one
+  pass, so carried-over routes keep their identity, their completer and their widget
+  state, and one notification is emitted instead of one per route.
+
+  This affects the declarative paradigm only; `applyDiff` has no other caller.
+
 ### Added — API
 
 - **`StackMutatable.removeIdentical`** removes a specific live entry, matching on
   identity instead of `==`. Use it over `remove` whenever the caller knows which
   instance left and the stack may hold equal routes. It is a no-op if the route is
   already gone, so it is safe to call twice.
+
+- **`StackMutatable.applyStack`** replaces the whole stack in one commit, carrying over
+  the entries that appear in the target and discarding the rest. It is the primitive for
+  declarative updates, where the caller already knows the target stack; guards are not
+  consulted, since the caller declared it.
 
 ### Migration
 

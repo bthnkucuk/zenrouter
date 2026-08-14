@@ -106,6 +106,13 @@ forward the key unchanged and need no action.
   and clears its stack-path binding, instead of leaving it bound.
 - **Duplicate routes in one stack are now legal.** `[/edit, /settings, /edit]` renders
   two independent pages, as it always should have.
+- **Declarative updates are a single commit.** If you use
+  `NavigationStack.declarative`, changing the `routes` list used to rebuild the path one
+  route at a time, completing the result of every route that survived the change. A
+  screen that outlived an update and later returned a value crashed with
+  `Bad state: Future already completed`. Nothing to change — but if you avoided
+  `Navigator.pop(context, value)` in a declarative stack because of it, you no longer
+  need to.
 - **Popping outside the coordinator now syncs correctly.** If a widget calls
   `Navigator.of(context).pop()` — a shared close button, a form that does not know about
   zenrouter — or the user swipes back, the path used to remove the first *value-equal*

@@ -202,6 +202,35 @@ mixin StackMutatable<T extends RouteTarget> on StackPath<T>
     return true;
   }
 
+  /// Replaces the whole stack with [next] in a single commit.
+  ///
+  /// Routes carried over from the current stack keep their identity, their
+  /// result completer and their widget state; routes that are not in [next] are
+  /// discarded and unbound. Exactly one notification is emitted.
+  ///
+  /// This is the primitive for declarative updates, where the caller already
+  /// knows the target stack. Rebuilding a path as `reset()` followed by a
+  /// `push` per route looks equivalent but is not: `reset` completes the result
+  /// completer of *every* route including the ones that survive, and each push
+  /// notifies separately.
+  ///
+  /// Guards are not consulted — the caller declared the target stack.
+  void applyStack(List<T> next) {
+    final dropped = [
+      for (final route in _stack)
+        if (!next.any((n) => identical(n, route))) route,
+    ];
+
+    bindStack(next);
+
+    for (final route in dropped) {
+      route.onDiscard();
+      route.clearStackPath();
+    }
+
+    notifyListeners();
+  }
+
   /// Removes a specific route from any position in the stack.
   ///
   /// Unlike [pop], this bypasses guards and operates on any index.

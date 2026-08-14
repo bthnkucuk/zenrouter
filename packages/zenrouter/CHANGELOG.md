@@ -58,6 +58,14 @@ fixing them is what this release is about.
 
 ### Fixed
 
+- **`NavigationStack.declarative` applies stack changes atomically** (via
+  `zenrouter_core` 3.0.0). Updating the `routes` list used to rebuild the path route by
+  route, which completed the result of every route that survived the update. Showing a
+  sheet and then letting an existing screen return a value threw
+  `Bad state: Future already completed`. The update is now a single commit: surviving
+  routes keep their identity, result and widget state, and the stack emits one
+  notification instead of one per route.
+
 - **`NavigationStack` now implements `onDidRemovePage`.** It was an empty callback, so
   when the `Navigator` removed a page on its own the path was synced indirectly, by the
   route taking itself off the stack with `==` — which removes the first equal entry.

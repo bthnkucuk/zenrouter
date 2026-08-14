@@ -149,6 +149,11 @@ rg -n "Future.delayed.*(push|pop|navigate)|await Future.delayed" lib/
 If a delay exists only to make two navigation calls land in the right order, it can go.
 Leave delays that serve animation or UX purposes.
 
+In a declarative stack, returning a value from a screen that outlived a `routes` update
+used to throw `Bad state: Future already completed`. Projects that routed around it —
+returning results through app state instead of `Navigator.pop(context, value)` — can go
+back to the plain API.
+
 Similarly, `Navigator.of(context).pop()` from a widget now syncs the path correctly.
 Projects that funnelled every pop through `coordinator.pop()` only to avoid the old
 mismatch can stop; `Navigator` pops, swipe back and predictive back all remove the entry

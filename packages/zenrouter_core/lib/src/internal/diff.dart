@@ -234,14 +234,14 @@ List<DiffOp<T>> _backtrack<T>(
 
 /// Apply diff operations to a NavigationPath.
 ///
-/// This function applies the diff operations calculated by [myersDiff]
-/// to efficiently update the navigation path from the old state to the new state.
+/// Computes the stack the operations describe and commits it in one go via
+/// [StackMutatable.applyStack]: routes that survive keep their identity,
+/// result completer and widget state, dropped routes are discarded, and a
+/// single notification is emitted.
 ///
-/// The operations are processed carefully to maintain correct indices:
-/// - If both deletes and inserts exist, we rebuild the stack once
-/// - Deletes alone are processed from highest to lowest index
-/// - Inserts alone are processed by building a new stack
-/// - Keeps are no-ops
+/// Operations are resolved against the old stack — deletes by their old index,
+/// inserts by their new index — so a [Keep] needs no handling: anything not
+/// deleted simply stays.
 void applyDiff<T extends RouteTarget>(
   StackMutatable<T> path,
   List<DiffOp<T>> operations,
@@ -249,7 +249,6 @@ void applyDiff<T extends RouteTarget>(
   // Early exit if no operations
   if (operations.isEmpty) return;
 
-  // Group operations by type for efficient processing
   final deletes = <Delete<T>>[];
   final inserts = <Insert<T>>[];
 
@@ -260,64 +259,32 @@ void applyDiff<T extends RouteTarget>(
       case Insert<T>():
         inserts.add(op);
       case Keep<T>():
-        // No action needed for Keep operations
+        // Survives by construction — nothing to do.
         break;
     }
   }
 
-  // If we have both deletes and inserts, it's more efficient to
-  // build a new stack in one pass rather than multiple modifications
-  if (deletes.isNotEmpty && inserts.isNotEmpty) {
-    final stackList = path.stack.toList();
+  if (deletes.isEmpty && inserts.isEmpty) return;
 
-    // Apply deletes (reverse order to maintain indices)
-    deletes.sort((a, b) => b.oldIndex.compareTo(a.oldIndex));
-    for (final delete in deletes) {
-      if (delete.oldIndex < stackList.length) {
-        stackList.removeAt(delete.oldIndex);
-      }
-    }
+  final next = path.stack.toList();
 
-    // Apply inserts
-    for (final insert in inserts) {
-      if (insert.newIndex <= stackList.length) {
-        stackList.insert(insert.newIndex, insert.element);
-        // coverage:ignore-start
-      } else {
-        stackList.add(insert.element);
-        // coverage:ignore-end
-      }
-    }
-
-    // Rebuild the path once
-    path.reset();
-    for (final route in stackList) {
-      path.push(route);
-    }
-  } else if (deletes.isNotEmpty) {
-    // Only deletes: process in reverse order to avoid index shifting
-    deletes.sort((a, b) => b.oldIndex.compareTo(a.oldIndex));
-    for (final delete in deletes) {
-      if (delete.oldIndex < path.stack.length) {
-        final element = path.stack[delete.oldIndex];
-        path.remove(element);
-      }
-    }
-  } else if (inserts.isNotEmpty) {
-    // Only inserts: build new stack
-    final stackList = path.stack.toList();
-    for (final insert in inserts) {
-      if (insert.newIndex <= stackList.length) {
-        stackList.insert(insert.newIndex, insert.element);
-      } else {
-        stackList.add(insert.element);
-      }
-    }
-
-    // Rebuild the path once
-    path.reset();
-    for (final route in stackList) {
-      path.push(route);
+  // Highest index first, so earlier indices stay valid.
+  deletes.sort((a, b) => b.oldIndex.compareTo(a.oldIndex));
+  for (final delete in deletes) {
+    if (delete.oldIndex < next.length) {
+      next.removeAt(delete.oldIndex);
     }
   }
+
+  for (final insert in inserts) {
+    if (insert.newIndex <= next.length) {
+      next.insert(insert.newIndex, insert.element);
+    } else {
+      // coverage:ignore-start
+      next.add(insert.element);
+      // coverage:ignore-end
+    }
+  }
+
+  path.applyStack(next);
 }

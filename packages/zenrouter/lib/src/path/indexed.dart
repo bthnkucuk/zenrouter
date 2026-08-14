@@ -220,7 +220,7 @@ class IndexedStackPath<T extends RouteTarget> extends StackPath<T>
   @override
   void dispose() {
     for (final route in stack) {
-      route.completeOnResult(null, null, true);
+      route.onDiscard();
       route.clearStackPath();
     }
     super.dispose();

@@ -78,6 +78,19 @@
 
 ### Fixed
 
+- **Clearing a path discards the routes it removes.** `onDiscard` is where an app releases
+  what a route owns — a subscription, a controller, a listener registered on its behalf —
+  and `StackPath.clear` dropped routes without it, so the thing that registered them kept
+  them alive for good. Popping already ran it, which is why this only showed up on the
+  paths that clear: `replace`, a layout leaving the stack, a `DeeplinkStrategy.stack`
+  arrival, and a path being disposed. Measured over 25 rounds of each: 0 discards, 27
+  listeners left on a store the routes had subscribed to, every route still alive.
+
+  `clear` takes a `keep` parameter for the one caller that puts a route straight back —
+  resolving a layout activates the instance already on the path, and discarding it there
+  would release a route that never left. Overriding `clear()` now means overriding
+  `clear({RouteTarget? keep})`.
+
 - **A route is discarded exactly once.** `onDiscard` is where an app releases what a
   route owns — a controller, a subscription, a notifier — and a route can leave through
   two doors at the same time: `applyStack` and `removeIdentical` remove *and* discard in

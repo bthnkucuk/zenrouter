@@ -134,7 +134,7 @@ class _MockStackPath implements StackPath<TestRoute> {
   void notifyListeners() {}
 
   @override
-  void clear() {}
+  void clear({RouteTarget? keep}) {}
 
   @override
   void bindStack(List<TestRoute> stack) {}

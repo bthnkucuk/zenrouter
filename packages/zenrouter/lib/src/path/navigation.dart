@@ -78,7 +78,7 @@ class NavigationPath<T extends RouteTarget> extends StackPath<T>
   @override
   void dispose() {
     for (final route in stack) {
-      route.completeOnResult(null, null, true);
+      route.onDiscard();
       route.clearStackPath();
     }
     super.dispose();
@@ -89,7 +89,9 @@ class NavigationPath<T extends RouteTarget> extends StackPath<T>
 
   @override
   Future<void> activateRoute(T route) async {
-    reset();
+    // `clear` rather than `reset` so the route being re-pushed is spared the
+    // discard — it is often the layout instance already on this path.
+    clear(keep: route);
     push(route);
   }
 

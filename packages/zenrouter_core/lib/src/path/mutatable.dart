@@ -141,7 +141,9 @@ mixin StackMutatable<T extends RouteTarget> on StackPath<T>
   /// Activates [route] as the only entry, overwriting the current history
   /// entry instead of adding one. Used by `CoordinatorCore.replace`.
   Future<void> activateReplacing(T route) async {
-    reset();
+    // `clear` rather than `reset` so the route being re-pushed is spared the
+    // discard — it is often the layout instance already on this path.
+    clear(keep: route);
     await _enqueue(() => _pushLocked(route, replacesHistory: true));
   }
 

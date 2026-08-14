@@ -106,12 +106,22 @@ abstract class StackPath<T extends RouteTarget> with ListenableObject {
   @protected
   /// Clears all routes from this path.
   ///
+  /// Every route removed is discarded: `onDiscard` is where an app releases
+  /// what a route owns — a subscription, a controller, a listener registered on
+  /// its behalf — and a route dropped without it keeps whatever registered it
+  /// alive for good.
+  ///
+  /// [keep] is the exception, for a caller that is about to put the route
+  /// straight back: resolving a layout activates the instance already on the
+  /// path, and discarding it there would release a route that never left. It is
+  /// still unbound, since the caller re-binds it.
+  ///
   /// **Important:** Guards are NOT consulted. Use this for forced resets
   /// like logout or app restart. For user-initiated back navigation,
   /// use [StackMutatable.pop] which respects guards.
-  void clear() {
+  void clear({RouteTarget? keep}) {
     for (final route in _stack) {
-      route.completeOnResult(null, null, true);
+      if (!identical(route, keep)) route.onDiscard();
       route.clearStackPath();
     }
     _stack.clear();

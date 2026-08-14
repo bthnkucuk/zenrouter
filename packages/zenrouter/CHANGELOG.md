@@ -217,6 +217,14 @@ fixing them is what this release is about.
   The widget now derives what it needs from the coordinator. Delete the argument if you
   passed one.
 
+- **A cold start no longer adds a history entry of its own.** Resolving the launch URI to a
+  route reported that route as a *new* entry, so a freshly loaded page began with two — the
+  URI the browser opened and the route it resolved to — and leaving the app took two back
+  presses. Working out which route the launch URI means is the app settling on where it
+  already is, not the user going somewhere, so `setInitialRoutePath` now replaces. A deep
+  link is left alone: `recover` owns its own history semantics per strategy. Whatever the
+  user does next still adds an entry, as it should.
+
 - **Wrapping a listenable hands back the same wrapper.** `toListenableMixin` and
   `toFlutterListenable` built a fresh adapter per call, and both sit in getters read on
   every build — `canPopListenable` above all. To `ListenableBuilder` a new adapter is a

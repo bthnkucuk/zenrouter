@@ -200,6 +200,25 @@ class CoordinatorRouterDelegate extends RouterDelegate<Uri>
     coordinator.navigate(route!);
   }
 
+  /// The platform's starting URI, resolved once at launch.
+  ///
+  /// It replaces rather than pushes: working out which route the launch URI
+  /// means is the app settling on where it already is, not the user going
+  /// somewhere. Reported as a new entry, a freshly loaded page would start with
+  /// two — the URI the browser opened and the route it resolved to — so leaving
+  /// the app would take two back presses.
+  ///
+  /// A deep link goes through [CoordinatorCore.recover], which owns its own
+  /// history semantics per strategy, so it is left alone.
+  @override
+  Future<void> setInitialRoutePath(Uri configuration) async {
+    final route = await coordinator.parseRouteFromUri(configuration);
+    if (route == null || route is RouteDeepLink) {
+      return setNewRoutePath(configuration);
+    }
+    coordinator.replace(route);
+  }
+
   /// Dont need to handle restored route since it handled in [CoordinatorRestorable]
   @override
   Future<void> setRestoredRoutePath(Uri configuration) async {}

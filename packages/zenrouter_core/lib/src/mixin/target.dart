@@ -143,8 +143,15 @@ abstract class RouteTarget extends Equatable {
   ///
   /// Overrides must call `super.onUpdate`: that is what marks the route as
   /// needing a rebuild, so the transferred data actually reaches the screen.
+  ///
+  /// Being handed *itself* transfers nothing, so it marks nothing. That case is
+  /// routine: resolving a route's layout chain calls this on the layout that is
+  /// already active, passing the live instance. Marking it there would leave
+  /// every shell dirty after every nested push, to be rebuilt for no reason by
+  /// whatever mutation came next.
   @mustCallSuper
   void onUpdate(covariant RouteTarget newRoute) {
+    if (identical(this, newRoute)) return;
     _needsRefresh = true;
   }
 }

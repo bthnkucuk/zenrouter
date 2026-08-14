@@ -154,7 +154,9 @@
   its widget state.
 
   Overrides of `onUpdate` must call `super.onUpdate(newRoute)` — that is what marks
-  the route. It was already `@mustCallSuper`.
+  the route. It was already `@mustCallSuper`. Being handed *itself* marks nothing,
+  since nothing was transferred; `onUpdate` still runs, so anything it derives is
+  still refreshed.
 
 - **`pushOrMoveToTop` notifies when it updates the route already on top.** It called
   `onUpdate` and returned silently, so nothing told the UI. Handing in the very same

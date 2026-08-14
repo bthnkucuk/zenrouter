@@ -53,6 +53,15 @@ abstract class RouteTarget extends Equatable {
   @protected
   void clearStackPath() => _path = null;
 
+  bool _discarded = false;
+
+  /// Whether [onDiscard] has already run for this route.
+  ///
+  /// A route is discarded once, by whoever removes it. Set by [onDiscard]
+  /// itself, which is why overriding it without calling `super` leaves the
+  /// route looking undiscarded.
+  bool get isDiscarded => _discarded;
+
   Object? _resultValue;
 
   /// The result value passed when this route was popped.
@@ -95,7 +104,13 @@ abstract class RouteTarget extends Equatable {
   /// `Navigator.onDidRemovePage`, which names the exact page.
   @mustCallSuper
   void onDidPop(Object? result, covariant CoordinatorCore? coordinator) {
-    onDiscard();
+    // Whoever took the route off the path may have discarded it already:
+    // `applyStack` and `removeIdentical` remove and discard in one step, and
+    // the page still reports its pop afterwards. Without this check an app's
+    // `onDiscard` override runs twice, releasing a second time whatever it
+    // released the first — a controller disposed twice, a subscription
+    // cancelled twice.
+    if (!_discarded) onDiscard();
     clearStackPath();
   }
 
@@ -118,6 +133,7 @@ abstract class RouteTarget extends Equatable {
   /// Differs from [onDidPop] which is called when the route is removed from stack.
   @mustCallSuper
   void onDiscard() {
+    _discarded = true;
     completeOnResult(null, null, true);
   }
 

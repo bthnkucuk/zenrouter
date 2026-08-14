@@ -78,6 +78,20 @@
 
 ### Fixed
 
+- **A route is discarded exactly once.** `onDiscard` is where an app releases what a
+  route owns — a controller, a subscription, a notifier — and a route can leave through
+  two doors at the same time: `applyStack` and `removeIdentical` remove *and* discard in
+  one step, and the route's page reports its pop afterwards. Both called `onDiscard`, so
+  an override that disposed something disposed it twice:
+
+  ```
+  A ValueNotifier<bool> was used after being disposed.
+  ```
+
+  `onDidPop` now discards only a route that has not been discarded already.
+  `RouteTarget.isDiscarded` reports that state; it is set by `onDiscard` itself, which is
+  why the method is now `@mustCallSuper`.
+
 - **Stack mutations are serialized.** Every mutation on a `StackMutatable` awaits
   something before it touches the stack — `RouteRedirect.resolve` on the push side,
   `RouteGuard.popGuard` on the pop side. A mutation arriving during one of those gaps

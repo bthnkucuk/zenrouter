@@ -51,8 +51,6 @@
   names the route and the fix. Debug-only; two *equal but distinct* instances remain
   fully supported.
 
-### Added
-
 - **`navigate` and `pushOrMoveToTop` now assert that `props` identifies the
   destination.** Both find an existing entry with `indexOf`, which compares by value —
   that is, by `props`. When `props` omits a field the route is identified by, two
@@ -141,6 +139,28 @@
 
   This affects the declarative paradigm only; `applyDiff` has no other caller.
 
+- **A redirect now decides once per navigation.** Every layer resolved
+  independently: the coordinator resolved to work out the layout, handed the target
+  to a path, which resolved again, and `navigate` resolved once more on its way to a
+  push. Measured invocations of a single route's `redirectWith`:
+
+  ```
+                            before   after
+    coordinator.push          2x      1x
+    coordinator.navigate      3x      1x
+    pushOrMoveToTop           2x      1x
+    coordinator.replace       2x      1x
+  ```
+
+  This is not only wasted work — an auth check or service call in a redirect ran
+  several times per navigation. There are `await`s between those layers, so whatever
+  the redirect consults can move in between and the layers can reach different
+  answers for one navigation. A route now carries the fact that its chain is settled.
+
+  Decisions are not cached across navigations: a later navigation with a fresh route
+  instance takes the decision again, so a redirect that changes its mind — a session
+  expiring — still works. A test pins that.
+
 - **A route updated in place now reaches the screen.** `navigate` and
   `pushOrMoveToTop` hand an existing entry the incoming route through
   [`RouteTarget.onUpdate`] rather than pushing a duplicate — but the page was built
@@ -180,6 +200,10 @@
   and no history stack is involved.
 
 ### Added — API
+
+- **`RouteTarget.redirectResolved` / `markRedirectResolved`** record that
+  `RouteRedirect.resolve` has settled a route's redirect chain, so the layers of one
+  navigation do not each re-decide it. Framework-managed.
 
 - **`RouteTarget.needsRefresh` / `didRefresh`** let a renderer tell a route that
   merely stayed on the stack from one that stayed *and* changed, so only the latter

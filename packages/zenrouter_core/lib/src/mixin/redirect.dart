@@ -31,6 +31,12 @@ mixin RouteRedirect<T extends RouteTarget> on RouteTarget {
     T route,
     CoordinatorCore? coordinator,
   ) async {
+    // Already settled by an outer layer of this same navigation: the
+    // coordinator resolves to find the layout, then hands the target to a
+    // path, which would otherwise ask again — and could get a different
+    // answer, since anything the redirect consults may have moved in between.
+    if (route.redirectResolved) return route;
+
     T target = route;
     while (target is RouteRedirect) {
       final redirect = target as RouteRedirect;
@@ -57,6 +63,8 @@ mixin RouteRedirect<T extends RouteTarget> on RouteTarget {
       target.onDiscard();
       target = newTarget;
     }
+    // ignore: invalid_use_of_protected_member
+    target.markRedirectResolved();
     return target;
   }
 

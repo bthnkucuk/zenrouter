@@ -121,6 +121,24 @@ abstract class RouteTarget extends Equatable {
     completeOnResult(null, null, true);
   }
 
+  bool _redirectResolved = false;
+
+  /// Whether [RouteRedirect.resolve] has already settled this route's redirect
+  /// chain.
+  ///
+  /// A navigation passes through several layers — the coordinator resolves to
+  /// work out the layout, then the path resolves again, and `navigate` resolves
+  /// once more on its way to a push. Each layer asking again means a redirect's
+  /// decision, and whatever service call it makes, runs several times for one
+  /// navigation, and the answers can differ across the awaits between them.
+  /// A route carries the answer instead, so the decision is taken once.
+  bool get redirectResolved => _redirectResolved;
+
+  /// Records that the redirect chain has been settled. Called by
+  /// [RouteRedirect.resolve], not by routes.
+  @protected
+  void markRedirectResolved() => _redirectResolved = true;
+
   bool _needsRefresh = false;
 
   /// Whether this route took on new data since its interface was last built.

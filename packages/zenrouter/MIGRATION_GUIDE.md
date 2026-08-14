@@ -174,6 +174,12 @@ forward the key unchanged and need no action.
   and clears its stack-path binding, instead of leaving it bound.
 - **Duplicate routes in one stack are now legal.** `[/edit, /settings, /edit]` renders
   two independent pages, as it always should have.
+- **Redirects run once per navigation instead of two or three times.** If a
+  `redirect` / `redirectWith` does real work — an auth check, a service lookup, an
+  analytics call — it now fires once. Nothing to change; if you made a redirect
+  idempotent or memoised it to survive being called repeatedly, that workaround can go.
+  The decision is still retaken on every new navigation, so session changes are picked
+  up as before.
 - **`onUpdate` now actually reaches the screen.** Navigating to a route already on the
   stack hands the existing route the new data instead of pushing a duplicate — but the
   page was reused, so the screen kept the old values. It refreshes now, keeping its

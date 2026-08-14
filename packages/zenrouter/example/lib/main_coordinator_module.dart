@@ -378,10 +378,13 @@ class ShopV2Layout extends AppRoute with RouteLayout<AppRoute> {
               NavigationRail(
                 selectedIndex: selectedIndex,
                 labelType: NavigationRailLabelType.all,
+                // `navigate` rather than `push`, as V1's bottom bar does: a
+                // rail picks which destination is showing, it does not stack a
+                // second copy of one already open.
                 onDestinationSelected: (i) => switch (i) {
-                  0 => coordinator.push(ShopHomeV2()),
-                  1 => coordinator.push(ProductListV2()),
-                  2 => coordinator.push(CartV2()),
+                  0 => coordinator.navigate(ShopHomeV2()),
+                  1 => coordinator.navigate(ProductListV2()),
+                  2 => coordinator.navigate(CartV2()),
                   _ => null,
                 },
                 destinations: const [
@@ -751,8 +754,8 @@ class BlogLayout extends AppRoute with RouteLayout<AppRoute> {
                 selectedIndex: selectedIndex,
                 labelType: NavigationRailLabelType.all,
                 onDestinationSelected: (i) => switch (i) {
-                  0 => coordinator.push(BlogHomeRoute()),
-                  1 => coordinator.push(BlogPostRoute(slug: 'latest')),
+                  0 => coordinator.navigate(BlogHomeRoute()),
+                  1 => coordinator.navigate(BlogPostRoute(slug: 'latest')),
                   _ => null,
                 },
                 destinations: const [
@@ -986,7 +989,7 @@ class SettingsLayout extends AppRoute with RouteLayout<AppRoute> {
                       isActive:
                           coordinator.activePath.stack.last
                               is GeneralSettingsRoute,
-                      onTap: () => coordinator.push(GeneralSettingsRoute()),
+                      onTap: () => coordinator.navigate(GeneralSettingsRoute()),
                     ),
                     _SettingsNavTile(
                       icon: Icons.person,
@@ -994,7 +997,7 @@ class SettingsLayout extends AppRoute with RouteLayout<AppRoute> {
                       isActive:
                           coordinator.activePath.stack.last
                               is AccountSettingsRoute,
-                      onTap: () => coordinator.push(AccountSettingsRoute()),
+                      onTap: () => coordinator.navigate(AccountSettingsRoute()),
                     ),
                     _SettingsNavTile(
                       icon: Icons.lock,
@@ -1002,7 +1005,7 @@ class SettingsLayout extends AppRoute with RouteLayout<AppRoute> {
                       isActive:
                           coordinator.activePath.stack.last
                               is PrivacySettingsRoute,
-                      onTap: () => coordinator.push(PrivacySettingsRoute()),
+                      onTap: () => coordinator.navigate(PrivacySettingsRoute()),
                     ),
                   ],
                 );

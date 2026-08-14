@@ -174,6 +174,14 @@ forward the key unchanged and need no action.
   and clears its stack-path binding, instead of leaving it bound.
 - **Duplicate routes in one stack are now legal.** `[/edit, /settings, /edit]` renders
   two independent pages, as it always should have.
+- **`onUpdate` now actually reaches the screen.** Navigating to a route already on the
+  stack hands the existing route the new data instead of pushing a duplicate — but the
+  page was reused, so the screen kept the old values. It refreshes now, keeping its
+  widget state. If you worked around this by putting the data in `props` so a second
+  page would be pushed, you can move it back out: `props` is the destination's identity,
+  and pushing a page per data change grows the stack and gives several entries the same
+  URL. Overrides of `onUpdate` must call `super.onUpdate(newRoute)`; it is
+  `@mustCallSuper`, so the analyzer already says so.
 - **Replacements stop piling up browser history.** On the web, `replace` and
   `pushReplacement` used to add an entry each, so the back button walked into screens
   the app had discarded. `pushReplacement` added two — being a pop followed by a push,

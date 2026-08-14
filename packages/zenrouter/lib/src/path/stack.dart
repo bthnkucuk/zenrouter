@@ -233,9 +233,26 @@ class _NavigationStackState<T extends RouteTarget>
     final newPages = <Page>[];
     for (final op in diffOps) {
       switch (op) {
-        case Keep<T>(:final oldIndex):
-          // Reuse existing page
-          newPages.add(_pages[oldIndex]);
+        case Keep<T>(:final oldIndex, :final newIndex):
+          // A route that stays on the stack can still have taken on new data:
+          // `navigate` and `pushOrMoveToTop` hand the existing route the
+          // incoming one through [RouteTarget.onUpdate]. Reusing its Page then
+          // shows stale content, because the same widget instance makes
+          // Flutter short-circuit the subtree.
+          //
+          // Only such routes are rebuilt; the rest keep their Page, so the
+          // cost stays proportional to what actually changed. Page identity is
+          // unaffected either way — the key is the route instance — so the
+          // Navigator refreshes the page instead of replacing it and its
+          // widget state survives.
+          final route = currentRoutes[newIndex];
+          if (route.needsRefresh) {
+            // ignore: invalid_use_of_protected_member
+            route.didRefresh();
+            newPages.add(_buildPage(route));
+          } else {
+            newPages.add(_pages[oldIndex]);
+          }
         case Insert<T>(:final element):
           // Create new page
           newPages.add(_buildPage(element));

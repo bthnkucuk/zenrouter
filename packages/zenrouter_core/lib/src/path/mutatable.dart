@@ -171,6 +171,12 @@ mixin StackMutatable<T extends RouteTarget> on StackPath<T>
       if (!last.deepEquals(target)) {
         target.onDiscard();
         target.clearStackPath();
+        // A distinct instance arrived, so [onUpdate] may have carried new data
+        // onto the route that stays. The stack looks unchanged and nothing
+        // else would tell the UI. Handing in the very same instance really is
+        // a no-op and stays silent.
+        _markHistory(replaces: false);
+        notifyListeners();
       }
       return;
     }

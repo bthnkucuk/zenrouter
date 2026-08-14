@@ -121,12 +121,30 @@ abstract class RouteTarget extends Equatable {
     completeOnResult(null, null, true);
   }
 
+  bool _needsRefresh = false;
+
+  /// Whether this route took on new data since its interface was last built.
+  ///
+  /// Set by [onUpdate] and cleared once the route has been rebuilt. Renderers
+  /// use it to tell a route that merely stayed on the stack from one that
+  /// stayed *and* changed, so only the latter pays for a rebuild.
+  bool get needsRefresh => _needsRefresh;
+
+  /// Marks this route as rebuilt. Called by the renderer, not by routes.
+  @protected
+  void didRefresh() => _needsRefresh = false;
+
   /// Called when this route is updated with state from a new route instance.
   ///
   /// When navigating to a route that already exists in the stack, instead of
   /// pushing a duplicate, this method is called to transfer state from the
   /// new route to the existing one. This enables scenarios like updating
   /// query parameters or refreshing data without rebuilding the widget.
+  ///
+  /// Overrides must call `super.onUpdate`: that is what marks the route as
+  /// needing a rebuild, so the transferred data actually reaches the screen.
   @mustCallSuper
-  void onUpdate(covariant RouteTarget newRoute) {}
+  void onUpdate(covariant RouteTarget newRoute) {
+    _needsRefresh = true;
+  }
 }

@@ -141,6 +141,25 @@
 
   This affects the declarative paradigm only; `applyDiff` has no other caller.
 
+- **A route updated in place now reaches the screen.** `navigate` and
+  `pushOrMoveToTop` hand an existing entry the incoming route through
+  [`RouteTarget.onUpdate`] rather than pushing a duplicate — but the page was built
+  once and reused, so the new data never showed. `onUpdate` looked like it worked:
+  the route held the new values while the screen kept the old ones.
+
+  `onUpdate` now marks the route as needing a rebuild, and the renderer refreshes
+  exactly those routes. Untouched entries keep their page, so an unrelated push costs
+  nothing extra — measured at 10 `build` calls for ten push/pop cycles on a six-deep
+  stack, the same as before. Page identity is unaffected, so a refreshed page keeps
+  its widget state.
+
+  Overrides of `onUpdate` must call `super.onUpdate(newRoute)` — that is what marks
+  the route. It was already `@mustCallSuper`.
+
+- **`pushOrMoveToTop` notifies when it updates the route already on top.** It called
+  `onUpdate` and returned silently, so nothing told the UI. Handing in the very same
+  instance is still a no-op and stays silent.
+
 - **A replacement no longer adds a browser history entry.** `replace` and
   `pushReplacement` discard the stack they replace, but every URI change was
   reported to the browser as a new entry, so the back button walked straight back
@@ -159,6 +178,10 @@
   and no history stack is involved.
 
 ### Added — API
+
+- **`RouteTarget.needsRefresh` / `didRefresh`** let a renderer tell a route that
+  merely stayed on the stack from one that stayed *and* changed, so only the latter
+  pays for a rebuild. Set by `onUpdate`, cleared by the renderer.
 
 - **`StackMutatable.removeIdentical`** removes a specific live entry, matching on
   identity instead of `==`. Use it over `remove` whenever the caller knows which

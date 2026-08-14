@@ -89,6 +89,12 @@ fixing them is what this release is about.
   Reachable wherever a coordinator outlives a pending result — a screen with a nested
   coordinator unmounting while a child awaits, a logout flow, test teardown.
 
+- **A page refreshes when its route takes on new data** (via `zenrouter_core` 3.0.0).
+  `NavigationStack` reused the `Page` of any route that stayed on the stack, and since
+  that is the same widget instance Flutter short-circuited the subtree — so navigating
+  to a route already on the stack updated the route and left the screen as it was.
+  Only routes that actually changed are rebuilt, so nothing else pays for it.
+
 - **`NavigationStack.declarative` applies stack changes atomically** (via
   `zenrouter_core` 3.0.0). Updating the `routes` list used to rebuild the path route by
   route, which completed the result of every route that survived the update. Showing a

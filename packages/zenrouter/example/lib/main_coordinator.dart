@@ -498,9 +498,13 @@ class NotFound extends AppRoute {
 /// the URL says 8123. Debug builds assert with an explanation instead of
 /// leaving you to notice the wrong screen.
 class OrderDetail extends AppRoute {
-  OrderDetail({required this.id});
+  OrderDetail({required this.id, this.note = 'none'});
 
   final String id;
+
+  /// Data the route carries, not part of its identity — the order is still the
+  /// same order whatever the note says.
+  String note;
 
   @override
   Type get layout => HomeLayout;
@@ -512,12 +516,48 @@ class OrderDetail extends AppRoute {
   @override
   List<Object?> get props => [id];
 
+  /// Navigating to an order already on the stack hands the existing route the
+  /// new data instead of pushing a second copy.
+  @override
+  void onUpdate(covariant OrderDetail newRoute) {
+    super.onUpdate(newRoute);
+    note = newRoute.note;
+    debugPrint('OrderDetail($id).onUpdate -> note is now "$note"');
+  }
+
   @override
   Widget build(AppCoordinator coordinator, BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('Order $id')),
       body: Center(
-        child: Text('Order $id', style: const TextStyle(fontSize: 32)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Order $id', style: const TextStyle(fontSize: 32)),
+            const SizedBox(height: 16),
+            Text('Note: $note', style: const TextStyle(fontSize: 20)),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () {
+                final stamp = DateTime.now().toIso8601String().substring(
+                  11,
+                  19,
+                );
+                coordinator.navigate(OrderDetail(id: id, note: stamp));
+              },
+              child: const Text('Update note'),
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+              child: Text(
+                'Navigating to an order already on the stack does not push a '
+                'second copy: onUpdate hands the existing route the new note, '
+                'and the page refreshes in place.',
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

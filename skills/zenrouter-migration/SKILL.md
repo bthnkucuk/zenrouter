@@ -181,6 +181,20 @@ The mirror also asserts: `props` containing per-instance state (a completer, a c
 a timestamp) makes identical destinations compare unequal, so `pushOrMoveToTop` pushes
 duplicates.
 
+### Cleanup opportunity — data that was pushed into `props` to force a refresh
+
+Navigating to a route already on the stack now refreshes its page. Projects that hit the
+old staleness sometimes worked around it by adding the changing data to `props`, which
+makes the routes unequal so a second page gets pushed instead.
+
+```bash
+rg -n "get props" -B 6 lib/ | rg -n "String |int |bool "
+```
+
+If a field is in `props` but not in `toUri()`, it is data rather than identity and can
+move out — pushing a page per data change grows the stack and leaves several entries
+claiming the same URL. Optional; only touch it if the user asked for cleanup.
+
 ### Cleanup opportunity — delete Set/Map workarounds
 
 Routes were previously unusable as `Set` elements or `Map` keys: `set.contains(route)`

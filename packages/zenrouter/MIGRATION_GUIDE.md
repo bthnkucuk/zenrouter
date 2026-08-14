@@ -252,6 +252,69 @@ forward the key unchanged and need no action.
   await gap and still applies synchronously, and the first mutation starts immediately
   when nothing else is in flight. If you have a workaround that inserted delays between
   navigation calls to keep them ordered, you can drop it.
+- **A screen keeps its exit transition when a dialog closes above it.** Flutter's
+  `DefaultTransitionDelegate` drops a page's exit animation whenever anything else is
+  above it, and a confirm-before-leaving dialog is always above it — so the dialog faded
+  out while the screen underneath snapped away. `NavigationStack` now installs
+  `ZenTransitionDelegate`, which keeps the transition in the two cases where the thing
+  above never covered the page: a `showDialog` route that has already been dismissed,
+  and a non-opaque page (`StackTransition.dialog` / `.sheet`) leaving in the same frame.
+  Two ordinary screens leaving together behave as before — only the top one animates.
+
+  See [Nested navigators added only to keep an exit animation](#nested-navigators-added-only-to-keep-an-exit-animation)
+  if you worked around this.
+
+### Nested navigators added only to keep an exit animation
+
+The usual workaround for the snap-away above was to give the screen its own navigator,
+so the dialog and the screen would pop in *different* navigators and each be a
+single-top-route pop. That means a sentinel key, a `RouteLayout`, and an internal seed
+route:
+
+```dart
+const Object kFlowLayoutKey = 'flow-layout';
+
+class FlowRoute extends AppRoute with RouteLayout<RouteUnique>, RouteGuard {
+  NavigationPath<RouteUnique>? _nested;
+
+  @override
+  Object get layoutKey => kFlowLayoutKey;               // ❌ no longer needed
+
+  @override
+  NavigationPath<RouteUnique> resolvePath(AppCoordinator c) =>
+      _nested ??= NavigationPath.createWith(
+        coordinator: c,
+        label: 'flow',
+        stack: [FlowContentRoute(this)],                // ❌ a page that exists
+      );                                                //    only to fill the navigator
+}
+
+class FlowDiscardRoute extends AppRoute with RouteTransition {
+  @override
+  Object? get parentLayoutKey => kFlowLayoutKey;        // ❌ no longer needed
+}
+```
+
+All of it can go. Make the screen an ordinary route again, drop the sentinel, the
+`RouteLayout`, the seed route and the `parentLayoutKey` on the dialog, and let both sit
+on the same stack:
+
+```bash
+rg -n "layoutKey|parentLayoutKey" lib/
+```
+
+Two things to check while you are in there:
+
+- **Value equality.** `RouteLayout` replaces `==` / `hashCode` with a proxy that compares
+  `layoutKey` and `parentLayoutKey` (after an identity short-circuit), so every instance
+  of a layout kind is interchangeable. A screen with
+  parameters (`/flow/<slug>`) had to restore prop-based equality by hand to stop every
+  slug collapsing into one destination. Once the route is not a layout, that hand-written
+  `==` / `hashCode` can go too — `Equatable` gives the right answer again.
+- **Where the dialog is pushed from.** A pop guard runs inside the path's mutation queue,
+  so `await coordinator.push(DialogRoute())` from inside `popGuardWith` waits for the very
+  pop it is deciding. Push it from the screen (and pop the screen yourself on "leave"), or
+  use `showDialog` inside the guard.
 
 ### One instance, one entry
 

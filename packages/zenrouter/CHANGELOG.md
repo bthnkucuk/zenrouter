@@ -151,6 +151,31 @@ fixing them is what this release is about.
   also land out of call order. Both are fixed; see the `zenrouter_core` changelog for
   the details and for the two cases that deliberately bypass the queue.
 
+- **A page leaving the stack keeps its exit transition when a dialog is closing
+  above it.** Flutter's `DefaultTransitionDelegate` completes an exiting page instead of
+  popping it whenever anything else is above the page — and *anything* includes a dialog
+  the user just dismissed. Every pop guard produces exactly that: the dialog is answered,
+  the guard returns `true`, and the page leaves while the dialog is still finishing its
+  own exit. The screen vanished in one frame instead of sliding away.
+
+  `NavigationStack` now uses `ZenTransitionDelegate`, which differs from the default in
+  two places and matches it everywhere else:
+
+  - A pageless route (`showDialog`, `showModalBottomSheet`) that has already been popped
+    is on its way out by itself and no longer costs the page its transition.
+  - An exiting page that is only covered by *non-opaque* exiting pages — a
+    `StackTransition.dialog` or `.sheet` leaving at the same moment — still animates,
+    since such a route never covered it.
+
+  Two ordinary screens leaving together behave as before: only the top one animates,
+  because the one below is not on screen to animate.
+
+  A page that keeps its transition also reports its pop, which the completed-away case
+  never did. So in those cases — a screen closed behind a guard's dialog, or under a
+  dialog route leaving with it — the route's result future now completes, its path
+  binding is cleared and `onDidPop` runs, where all three used to be skipped. An
+  `await coordinator.push(...)` on such a screen used to hang for good.
+
 ### Added
 
 - **A route can declare the stack it sits on** (via `zenrouter_core` 3.0.0). Opening

@@ -9,6 +9,7 @@ import 'package:zenrouter/src/path/indexed.dart';
 import 'package:zenrouter/src/path/navigation.dart';
 import 'package:zenrouter/src/path/restoration.dart';
 import 'package:zenrouter/src/path/transition.dart';
+import 'package:zenrouter/src/path/transition_delegate.dart';
 import 'package:zenrouter_core/zenrouter_core.dart';
 
 /// A widget that renders a stack of pages based on a [NavigationPath].
@@ -323,6 +324,11 @@ class _NavigationStackState<T extends RouteTarget>
       key: widget.navigatorKey,
       pages: _pages,
       observers: _observers,
+      // Flutter's default delegate drops a page's exit transition whenever
+      // anything is above it — including a dialog the user has just dismissed,
+      // which is what every pop guard leaves behind.
+      transitionDelegate: const ZenTransitionDelegate(),
+
       // The Navigator removed a page on its own — an imperative
       // `Navigator.pop`, an interactive swipe back, a predictive back. Flutter
       // requires the pages list to stop including that page, so sync the path.

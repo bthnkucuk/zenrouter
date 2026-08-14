@@ -63,6 +63,7 @@ class GuardRulesCoordinator extends Coordinator<AppRoute>
       [] => HomeRoute(),
       ['editor', final id] => EditorRoute(documentId: id),
       ['settings'] => SettingsRoute(),
+      ['discard'] => DiscardRoute(),
       ['upload', final id] => UploadRoute(jobId: id),
       _ => HomeRoute(),
     };
@@ -387,6 +388,19 @@ class EditorRoute extends AppRoute
               ),
             ),
             const SizedBox(height: 12),
+            OutlinedButton.icon(
+              // The same question as the guard's, asked through a route.
+              onPressed: () async {
+                final discard = await coordinator.push<bool>(DiscardRoute());
+                if (discard != true) return;
+                // Answered already, so the guard has nothing left to ask.
+                markClean();
+                coordinator.pop();
+              },
+              icon: const Icon(Icons.exit_to_app),
+              label: const Text('Close via dialog route'),
+            ),
+            const SizedBox(height: 12),
             Expanded(
               child: TextField(
                 decoration: const InputDecoration(
@@ -402,6 +416,54 @@ class EditorRoute extends AppRoute
           ],
         ),
       ),
+    );
+  }
+}
+
+/// A dialog written as a **route** rather than through `showDialog`.
+///
+/// It rides on the navigation stack like any other screen: it has a URL, it is
+/// restored with the stack, and popping it returns a value to whoever pushed
+/// it. [StackTransition.dialog] builds it as a `DialogRoute`, which is not
+/// opaque — so when it leaves together with the screen underneath, that screen
+/// still plays its own exit transition.
+///
+/// Push it from the screen, not from a guard: a guard runs inside the path's
+/// mutation queue, and a push issued from there waits for the very pop it is
+/// deciding.
+class DiscardRoute extends AppRoute with RouteTransition {
+  @override
+  Uri toUri() => Uri.parse('/discard');
+
+  @override
+  StackTransition<T> transition<T extends RouteUnique>(
+    covariant GuardRulesCoordinator coordinator,
+  ) => StackTransition.dialog(
+    Builder(builder: (context) => build(coordinator, context)),
+  );
+
+  @override
+  Widget build(
+    covariant GuardRulesCoordinator coordinator,
+    BuildContext context,
+  ) {
+    return AlertDialog(
+      title: const Text('Discard changes?'),
+      content: const Text(
+        'This dialog is a route — check the address bar, and watch the editor '
+        'slide away behind it.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => coordinator.pop(false),
+          child: const Text('Stay'),
+        ),
+        TextButton(
+          onPressed: () => coordinator.pop(true),
+          style: TextButton.styleFrom(foregroundColor: Colors.red),
+          child: const Text('Discard'),
+        ),
+      ],
     );
   }
 }

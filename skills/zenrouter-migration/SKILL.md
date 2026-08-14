@@ -12,7 +12,9 @@ description: >
   RouteLayoutBuilder, parseRouteFromUri return type, createWith, bindLayout,
   defineLayoutBuilder, routerConfig, routeInformationProvider, browser history,
   back button, replace history entry, CoordinatorNavigatorObserver, observers,
-  observersBuilder, NavigatorObserver, observer.navigator == null.
+  observersBuilder, NavigatorObserver, observer.navigator == null,
+  pop animation missing, exit transition, TransitionDelegate, ZenTransitionDelegate,
+  dialog route, layoutKey, parentLayoutKey, nested navigator.
 ---
 
 # ZenRouter Migration Skill
@@ -220,6 +222,35 @@ rg -n "get props" -B 6 lib/ | rg -n "String |int |bool "
 If a field is in `props` but not in `toUri()`, it is data rather than identity and can
 move out — pushing a page per data change grows the stack and leaves several entries
 claiming the same URL. Optional; only touch it if the user asked for cleanup.
+
+### Cleanup opportunity — nested navigators added only to keep an exit animation
+
+Flutter's `DefaultTransitionDelegate` drops a page's exit animation whenever anything sits
+above it, so a "discard changes?" dialog made the screen underneath snap away instead of
+sliding. `NavigationStack` now installs `ZenTransitionDelegate`, which keeps the
+transition when the thing above never covered the page — an already-dismissed
+`showDialog` route, or a non-opaque page (`StackTransition.dialog` / `.sheet`) leaving in
+the same frame.
+
+The usual workaround was to give the screen its own navigator so the two pops happened in
+different navigators:
+
+```bash
+rg -n "layoutKey|parentLayoutKey" lib/
+```
+
+A sentinel key plus a `RouteLayout` plus an internal seed route, all to separate two pops,
+can now be deleted — the screen goes back to being an ordinary route and the dialog back
+onto the same stack. Two follow-ups when you do:
+
+- A parameterised route that was forced into `RouteLayout` had to hand-write `==` /
+  `hashCode`, because `RouteLayout` compares by `layoutKey` / `parentLayoutKey` and would
+  otherwise collapse every `/flow/<slug>` into one destination. Drop that override too.
+- A pop guard runs inside the path's mutation queue, so `await coordinator.push(...)` from
+  inside `popGuardWith` waits for the pop it is deciding. Push the dialog route from the
+  screen, or use `showDialog` inside the guard.
+
+Only touch this if the user asked for cleanup, or if they mention a missing pop animation.
 
 ### Cleanup opportunity — delete Set/Map workarounds
 

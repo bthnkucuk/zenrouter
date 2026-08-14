@@ -87,6 +87,19 @@ fixing them is what this release is about.
 
 ### Fixed
 
+- **A coordinator notification no longer rebuilds the whole router subtree.** The root
+  widget was built from scratch every time, so each notification put the navigator, its
+  overlay and every visible page's transition machinery through an update — for a widget
+  whose every argument is fixed for the coordinator's life. What actually moves is the
+  *stack*, and the widget's own state listens to the path for that.
+
+  It is now built once and handed back. Elements rebuilt on a two-navigator app: **84 per
+  notification, down to 7**; a real navigation 329 down to 252, the remainder being the
+  pages that genuinely changed. Registering a layout builder rebuilds it, since that is
+  what it was made from. Hot reload is unaffected — `reassemble` marks the tree dirty
+  directly rather than through widget equality — and an app that overrides `layoutBuilder`
+  opts out.
+
 - **The same route twice on one stack no longer crashes on the frame that saves it.**
   A stack may hold a route it already holds — `[/edit, /settings, /edit]` is ordinary,
   and page keys have been identity-based since 3.0.0 for exactly that reason. Restoration

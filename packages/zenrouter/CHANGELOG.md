@@ -103,6 +103,19 @@ fixing them is what this release is about.
   Only layout routes are affected. An ordinary page answers on a type test, does not
   subscribe to anything, and its own `RouteGuard` still decides as before.
 
+- **Working out a route's restoration id no longer grows with the square of its
+  nesting.** The id spells out the paths a route sits under, so it walks the layout
+  chain — and every link re-read the coordinator's active layout list, which itself
+  walks the whole hierarchy. On top of that the forgiving form, `tryResolveRouteId`,
+  checked every path was labelled by walking the chain and then built the id by walking
+  it again. That second form is the one the renderer uses, once per tab, every time the
+  tab children are rebuilt.
+
+  The chain is now read once and shared, and the label check happens on the single walk
+  that builds the id. Measured in path resolutions for one id, at nesting depth 1/2/3:
+  `resolveRouteId` **3, 8, 15 → 3, 6, 9**, and `tryResolveRouteId` **6, 16, 30 → 3, 6,
+  9**.
+
 - **`replace` and `pushReplacement` no longer leave a back-navigable entry** (via
   `zenrouter_core` 3.0.0). On the web, signing in through a `replace` used to leave
   `/login` one back-press away. `CoordinatorRouteInformationProvider` now reports

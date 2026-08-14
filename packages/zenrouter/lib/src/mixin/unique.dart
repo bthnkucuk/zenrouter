@@ -66,8 +66,13 @@ mixin RouteUnique on RouteTarget implements RouteUri {
   late final _proxy = RouteLayoutChild.proxy(this);
 
   @override
-  RouteLayout? resolveParentLayout(coordinator) {
-    final layout = _proxy.resolveParentLayout(coordinator) as RouteLayout?;
+  RouteLayout? resolveParentLayout(
+    covariant CoordinatorCore coordinator, {
+    List<RouteLayoutParent>? activeLayouts,
+  }) {
+    final layout =
+        _proxy.resolveParentLayout(coordinator, activeLayouts: activeLayouts)
+            as RouteLayout?;
 
     // Validate that routes using IndexedStackPath are in the initial stack
     // Using assert with closure to ensure all validation logic is removed in production

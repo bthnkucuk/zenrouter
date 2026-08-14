@@ -66,45 +66,58 @@ mixin CoordinatorRestoration<T extends RouteUnique> on CoordinatorCore<T> {
   /// can be used on their own with a path that is not — and a renderer asking
   /// on a route's behalf should not turn that into a crash. Restoration is
   /// simply off for such a subtree, which is where it was before it asked.
-  String? tryResolveRouteId(covariant T route) {
-    RouteLayout? layout = route.resolveParentLayout(this);
-    while (layout != null) {
-      if (layout.resolvePath(this).debugLabel == null) return null;
-      layout = layout.resolveParentLayout(this);
-    }
-    return resolveRouteId(route);
-  }
+  String? tryResolveRouteId(covariant T route) =>
+      _resolveRouteId(route, orNull: true);
 
   /// Resolves the restoration ID for a given route.
   ///
   /// This ID is used to restore the route when the app is re-launched.
-  String resolveRouteId(covariant T route) {
-    RouteLayout? layout = route.resolveParentLayout(this);
-    List<RouteLayout> layouts = [];
-    List<StackPath> layoutPaths = [];
-    while (layout != null) {
-      layouts.add(layout);
-      layoutPaths.add(layout.resolvePath(this));
-      layout = layout.resolveParentLayout(this);
-    }
+  String resolveRouteId(covariant T route) => _resolveRouteId(route)!;
 
-    String layoutRestorationId = layoutPaths
-        .map((p) {
-          final label = p.debugLabel;
+  /// Spells out the paths [route] sits under, innermost first.
+  ///
+  /// The two public forms differ only in what an unlabelled path means, so they
+  /// share the walk: doing it twice cost twice the work for the renderer, which
+  /// asks through the nullable one.
+  String? _resolveRouteId(T route, {bool orNull = false}) {
+    final labels = <String>[];
+
+    // A route with no layout has no chain to walk, and reading the active list
+    // below walks the whole hierarchy — so it is not read at all for the routes
+    // that would get nothing out of it.
+    if (route.parentLayoutKey != null) {
+      // Read once for the rest — every read of it walks the hierarchy.
+      // ignore: invalid_use_of_protected_member
+      final actives = activeLayoutParentList;
+      RouteLayout? layout = route.resolveParentLayout(
+        this,
+        activeLayouts: actives,
+      );
+      while (layout != null) {
+        final label = layout.resolvePath(this).debugLabel;
+        if (label == null) {
+          // A path registered on a coordinator always has a label, but the
+          // widgets can be used on their own with one that does not. A renderer
+          // asking on a route's behalf gets `null` — restoration is simply off
+          // for that subtree — while an app asking directly still hears about it.
+          if (orNull) return null;
           assert(
-            label != null,
+            false,
             '[StackPath] must have an unique label in order to use with Coordinator restorable',
           );
-          return label!;
-        })
-        .join('_');
-    layoutRestorationId = '${rootRestorationId}_$layoutRestorationId';
+          return null;
+        }
+        labels.add(label);
+        layout = layout.resolveParentLayout(this, activeLayouts: actives);
+      }
+    }
+
     final routeRestorationId = switch (route) {
       RouteRestorable() => (route as RouteRestorable).restorationId,
       _ => route.identifier.toString(),
     };
 
-    return '${layoutRestorationId}_$routeRestorationId';
+    return '${rootRestorationId}_${labels.join('_')}_$routeRestorationId';
   }
 
   void defineRestorableConverter(

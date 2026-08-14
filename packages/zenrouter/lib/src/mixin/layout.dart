@@ -100,6 +100,15 @@ mixin RouteLayout<T extends RouteUnique> on RouteUnique
     'value': layoutKey.toString(),
   };
 
+  /// Declared here only so the two superinterfaces agree on one signature —
+  /// [RouteUnique] narrows the return type and [RouteLayoutChild] carries the
+  /// parameters, and the analyzer will not merge the two on its own.
+  @override
+  RouteLayout? resolveParentLayout(
+    covariant CoordinatorCore coordinator, {
+    List<RouteLayoutParent>? activeLayouts,
+  }) => super.resolveParentLayout(coordinator, activeLayouts: activeLayouts);
+
   /// Resolves the stack path for this layout.
   ///
   /// This determines which [StackPath] this layout manages.

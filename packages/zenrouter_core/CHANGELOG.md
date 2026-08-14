@@ -267,6 +267,13 @@
 
 ### Added — API
 
+- **`RouteLayoutChild.resolveParentLayout` takes an optional `activeLayouts`.** Resolving
+  one link of a layout chain reads the coordinator's active layout list, and reading it
+  walks the whole hierarchy — so resolving a chain of *n* layouts walked it *n* times. A
+  caller that is going to walk the chain can now read the list once and pass it down. The
+  list is derived from what is active and resolving does not mutate it, so one read holds
+  for the whole walk. Optional, so existing callers and overrides are unaffected.
+
 - **`DeeplinkStrategy.stack` and `RouteDeepLink.deeplinkStack`** let a route declare
   what it sits on, so a cold link establishes a stack rather than a single screen.
 

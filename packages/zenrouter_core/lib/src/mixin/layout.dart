@@ -122,13 +122,20 @@ mixin RouteLayoutChild on RouteTarget {
   /// layout exists, it creates a new one via [createParentLayout].
   ///
   /// Returns `null` if [parentLayoutKey] is not set.
+  /// [activeLayouts] is the coordinator's active layout chain. Reading it walks
+  /// the whole hierarchy and builds a list, so a caller resolving a chain of
+  /// layouts should read it once and pass it down rather than have each link
+  /// rebuild it. It is derived from what is active and nothing here mutates it,
+  /// so one read is good for the whole walk.
   RouteLayoutParent? resolveParentLayout(
-    covariant CoordinatorCore coordinator,
-  ) {
+    covariant CoordinatorCore coordinator, {
+    List<RouteLayoutParent>? activeLayouts,
+  }) {
     if (parentLayoutKey == null) return null;
 
-    // ignore: invalid_use_of_protected_member
-    final routeParentLayoutList = coordinator.activeLayoutParentList;
+    final routeParentLayoutList =
+        // ignore: invalid_use_of_protected_member
+        activeLayouts ?? coordinator.activeLayoutParentList;
 
     // Find existing layout or create new one
     RouteLayoutParent? resolvedParentLayout;

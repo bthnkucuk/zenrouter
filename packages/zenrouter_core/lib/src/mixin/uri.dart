@@ -33,7 +33,9 @@ abstract class RouteUri extends RouteTarget
       _proxy.createParentLayout(coordinator);
 
   @override
-  RouteLayoutParent? resolveParentLayout(CoordinatorCore coordinator) =>
-      _proxy.resolveParentLayout(coordinator);
+  RouteLayoutParent? resolveParentLayout(
+    CoordinatorCore coordinator, {
+    List<RouteLayoutParent>? activeLayouts,
+  }) => _proxy.resolveParentLayout(coordinator, activeLayouts: activeLayouts);
   // coverage:ignore-end
 }

@@ -21,6 +21,15 @@ enum DeeplinkStrategy {
   /// The back button will return to the previous route.
   push,
 
+  /// Establishes the whole stack the route says it sits on, via
+  /// [RouteDeepLink.deeplinkStack].
+  ///
+  /// A URI usually implies more than the screen it points at: `/products/42` is
+  /// a detail sitting on a list. The other strategies can only place that one
+  /// screen, so arriving cold leaves nothing underneath and the back button
+  /// leaves the app.
+  stack,
+
   /// Uses a custom handler defined in [RouteDeepLink.deeplinkHandler].
   /// Allows complete control over how the deep link is processed.
   custom,
@@ -44,6 +53,23 @@ mixin RouteDeepLink on RouteUri {
   DeeplinkStrategy get deeplinkStrategy;
 
   // coverage:ignore-start
+  /// The stack this route sits on, bottom entry first, ending with the route
+  /// itself.
+  ///
+  /// Called when [deeplinkStrategy] is [DeeplinkStrategy.stack]. The route was
+  /// already built from the URI, so it knows its own parameters; [uri] is there
+  /// for the cases where what sits underneath depends on more than the route
+  /// itself.
+  ///
+  /// ```dart
+  /// @override
+  /// DeeplinkStrategy get deeplinkStrategy => DeeplinkStrategy.stack;
+  ///
+  /// @override
+  /// List<RouteUri> deeplinkStack(Uri uri) => [ProductList(), this];
+  /// ```
+  List<RouteUri> deeplinkStack(Uri uri) => [this];
+
   /// Custom handler called when [deeplinkStrategy] is [DeeplinkStrategy.custom].
   ///
   /// This allows full control over deep link processing, including accessing

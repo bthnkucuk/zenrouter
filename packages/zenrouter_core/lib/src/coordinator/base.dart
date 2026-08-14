@@ -212,6 +212,46 @@ abstract class CoordinatorCore<T extends RouteUri> extends Equatable
   @override
   FutureOr<T?> parseRouteFromUri(Uri uri);
 
+  /// Establishes [stack] as the navigation state, bottom entry first.
+  ///
+  /// Driven by [DeeplinkStrategy.stack]: the route said what it sits on, so
+  /// that defines the state — what was there is discarded first. Entries are
+  /// pushed in order and each resolves its own layout, so entries belonging to
+  /// different layouts land in their own paths.
+  ///
+  /// The discard does not consult pop guards, the same as any other deep-link
+  /// arrival: the URI is an instruction about where the app is, not a request
+  /// to leave the current screen.
+  Future<void> recoverStack(List<T> stack) async {
+    if (stack.isEmpty) return;
+
+    for (final path in paths) {
+      path.reset();
+    }
+
+    for (final route in stack) {
+      final target = await RouteRedirect.resolve(route, this);
+      if (target == null) continue;
+
+      final parentLayout = target.resolveParentLayout(this);
+      if (parentLayout != null) {
+        await _prepareParentLayoutList(
+          parentLayout,
+          strategy: _ResolveLayoutStrategy.pushToTop,
+        );
+      }
+
+      final parentPath = parentLayout?.resolvePath(this) ?? root;
+      if (parentPath case StackMutatable path) {
+        // Not awaited: push settles on pop. Order is preserved because the
+        // path serialises its mutations.
+        path.push(target);
+      } else {
+        await parentPath.activateRoute(target);
+      }
+    }
+  }
+
   /// Handles deep link navigation by parsing URI and calling [recover].
   Future<void> recoverRouteFromUri(Uri uri) async {
     final route = await parseRouteFromUri(uri);
@@ -275,6 +315,8 @@ abstract class CoordinatorCore<T extends RouteUri> extends Equatable
           push(target);
         case DeeplinkStrategy.replace:
           replace(target);
+        case DeeplinkStrategy.stack:
+          await recoverStack(target.deeplinkStack(target.identifier).cast<T>());
         case DeeplinkStrategy.custom:
           await target.deeplinkHandler(this, target.identifier);
       }

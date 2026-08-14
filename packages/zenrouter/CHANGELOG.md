@@ -151,6 +151,28 @@ fixing them is what this release is about.
   also land out of call order. Both are fixed; see the `zenrouter_core` changelog for
   the details and for the two cases that deliberately bypass the queue.
 
+### Added
+
+- **A route can declare the stack it sits on** (via `zenrouter_core` 3.0.0). Opening
+  `/products/42` from a link used to land on the detail alone, so the first back press
+  left the app. A route now says what belongs underneath it:
+
+  ```dart
+  class ProductDetail extends AppRoute with RouteDeepLink {
+    @override
+    DeeplinkStrategy get deeplinkStrategy => DeeplinkStrategy.stack;
+
+    @override
+    List<RouteUri> deeplinkStack(Uri uri) => [ProductList(), this];
+  }
+  ```
+
+  The URI pattern stays in `parseRouteFromUri` alone — the route knows its own context,
+  so nothing is repeated. Routes that do not opt in behave exactly as before.
+
+  A browser **back** button press is still a URL-to-URL navigation and does not consult
+  pop guards; only leaving through the app (`pop`, `tryPop`, system back) does.
+
 ### Migration
 
 Most projects need **no code changes**. See

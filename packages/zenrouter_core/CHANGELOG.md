@@ -201,6 +201,33 @@
 
 ### Added — API
 
+- **`DeeplinkStrategy.stack` and `RouteDeepLink.deeplinkStack`** let a route declare
+  what it sits on, so a cold link establishes a stack rather than a single screen.
+
+  A URI usually implies more than the screen it points at: `/products/42` is a detail
+  sitting on a list. The other strategies can only place that one screen, so arriving
+  from a link left nothing underneath and the back button walked straight out of the
+  app.
+
+  ```dart
+  class ProductDetail extends AppRoute with RouteDeepLink {
+    @override
+    DeeplinkStrategy get deeplinkStrategy => DeeplinkStrategy.stack;
+
+    @override
+    List<RouteUri> deeplinkStack(Uri uri) => [ProductList(), this];
+  }
+  ```
+
+  Entries are established bottom-first and each resolves its own layout, so a stack
+  spanning several layouts lands in the right paths. Routes that do not opt in are
+  unaffected.
+
+- **`CoordinatorCore.recoverStack`** establishes a list of routes as the navigation
+  state, bottom entry first. Driven by `DeeplinkStrategy.stack`; callable directly for
+  app-defined restoration. The discard it starts with does not consult pop guards —
+  the same as any other deep-link arrival.
+
 - **`RouteTarget.redirectResolved` / `markRedirectResolved`** record that
   `RouteRedirect.resolve` has settled a route's redirect chain, so the layers of one
   navigation do not each re-decide it. Framework-managed.

@@ -258,6 +258,9 @@ class SettingsTab extends AppRoute {
 // Detail Routes (belong to HomeLayout - navigatorStack layout)
 // ============================================================================
 
+/// Declares the stack it sits on through [deeplinkStack], so arriving here from
+/// a cold link still leaves the feed underneath — and leaving it goes through
+/// [popGuardWith] like any other pop.
 class FeedDetail extends AppRoute
     with RouteGuard, RouteRedirect, RouteDeepLink {
   FeedDetail({required this.id});
@@ -266,6 +269,12 @@ class FeedDetail extends AppRoute
 
   @override
   Type get layout => FeedTabLayout;
+
+  @override
+  DeeplinkStrategy get deeplinkStrategy => DeeplinkStrategy.stack;
+
+  @override
+  List<RouteUri> deeplinkStack(Uri uri) => [FeedTab(), this];
 
   @override
   Uri toUri() => Uri.parse('/home/feed/$id');
@@ -326,15 +335,6 @@ class FeedDetail extends AppRoute
     /// The redirect path resolver by the Coordinator
     if (id == 'profile') return ProfileDetail();
     return this;
-  }
-
-  @override
-  DeeplinkStrategy get deeplinkStrategy => DeeplinkStrategy.custom;
-
-  @override
-  FutureOr<void> deeplinkHandler(AppCoordinator coordinator, Uri uri) {
-    coordinator.replace(FeedTab());
-    coordinator.push(this);
   }
 }
 

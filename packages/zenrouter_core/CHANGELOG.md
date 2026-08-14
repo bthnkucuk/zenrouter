@@ -78,6 +78,20 @@
 
 ### Fixed
 
+- **An update that transferred nothing is not announced.** `navigate` to a route already
+  on the stack notified unconditionally after `onUpdate` — including when it was handed the
+  route *itself*, which is what resolving a layout and restoring both do. That rebuilt the
+  whole router subtree and reported a URI the app was already on. It now notifies only when
+  the incoming route is a distinct instance, which is the only case `onUpdate` can transfer
+  anything from; pops above the target have already notified for themselves.
+
+- **`StackPath.stack` is a view, not a copy.** It built a fresh unmodifiable list on every
+  read, and everything goes through it — `activeRoute`, `currentUri`, both renderers, and
+  `navigate`'s own loop condition, tens of times per navigation. It now hands out one view
+  over the live stack: the same object every time, reflecting the path as it is. Anything
+  that needs to remember how the stack looked has to copy it; the two places in the
+  framework that do now say so.
+
 - **Disposing a modular coordinator releases its modules' paths.** `paths` is composed
   from the module map, and `dispose` cleared that map before the base class walked
   `paths` — so a plain `RouteModule`'s path was never disposed: its listener stayed

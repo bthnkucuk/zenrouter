@@ -287,7 +287,9 @@ class _NavigationStackState<T extends RouteTarget>
   void _updateRestorable() {
     if (_restorable == null) return;
     if (listEquals(_restorable!.value, widget.path.stack)) return;
-    _restorable!.value = widget.path.stack;
+    // Copied: `stack` is a live view, and a restorable that held it would
+    // compare equal to itself for ever and stop saving.
+    _restorable!.value = List<T>.of(widget.path.stack);
   }
 
   /// Whether both widgets name the same coordinator.

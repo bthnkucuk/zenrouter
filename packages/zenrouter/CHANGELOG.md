@@ -217,6 +217,20 @@ fixing them is what this release is about.
   The widget now derives what it needs from the coordinator. Delete the argument if you
   passed one.
 
+- **Wrapping a listenable hands back the same wrapper.** `toListenableMixin` and
+  `toFlutterListenable` built a fresh adapter per call, and both sit in getters read on
+  every build — `canPopListenable` above all. To `ListenableBuilder` a new adapter is a
+  different listenable, so it dropped its listener and re-registered it every frame. Each
+  listenable now keeps one adapter for as long as it lives.
+
+- **Restoration state is only re-serialised when it changed.** `CoordinatorRestorable`
+  built a fresh map on every coordinator notification and assigned it, and assigning
+  re-serialises everything — one `Uri` per route on every stack. Since the map was new each
+  time, the framework's own equality check never caught it. Measured on an idle
+  notification with 21 routes on the stack: **22 `toUri()` calls, now 1**, and it no longer
+  grows with the depth of the navigation. A notification that does move the stacks saves as
+  before.
+
 - **A navigator handed a different path lets go of the first.** `didUpdateWidget` moved
   the listener that rebuilds pages but not the one that saves restoration state, so the
   old path kept it — and a listener is a bound method, so it held the `State` and

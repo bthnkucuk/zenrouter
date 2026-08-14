@@ -1,6 +1,7 @@
 // ignore_for_file: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
 
 import 'dart:async';
+import 'dart:collection';
 
 import 'package:meta/meta.dart' show protected, mustCallSuper;
 import 'package:zenrouter_core/src/coordinator/base.dart';
@@ -52,6 +53,8 @@ abstract class StackPath<T extends RouteTarget> with ListenableObject {
   /// The internal mutable stack.
   final List<T> _stack;
 
+  late final List<T> _stackView = UnmodifiableListView(_stack);
+
   @protected
   void bindStack(List<T> stack) {
     _stack.clear();
@@ -97,11 +100,17 @@ abstract class StackPath<T extends RouteTarget> with ListenableObject {
   /// Each [StackPath] subclass should define a unique static [PathKey].
   PathKey get pathKey;
 
-  /// The current navigation stack as an unmodifiable list.
+  /// The current navigation stack, read-only.
   ///
   /// The first element is the bottom of the stack (first route),
   /// and the last element is the top of the stack (current route).
-  List<T> get stack => List.unmodifiable(_stack);
+  ///
+  /// A **view**, not a copy: it reflects the path as it is now, which is what
+  /// almost every reader wants and what makes it cheap enough to sit on the
+  /// hot path — `activeRoute`, `currentUri` and the renderers all go through
+  /// here, several times per navigation. Anything that needs to remember how
+  /// the stack looked at a moment has to copy it.
+  List<T> get stack => _stackView;
 
   @protected
   /// Clears all routes from this path.

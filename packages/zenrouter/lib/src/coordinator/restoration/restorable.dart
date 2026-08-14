@@ -1,4 +1,5 @@
 import 'package:collection/collection.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:zenrouter/zenrouter.dart';
 
@@ -69,6 +70,10 @@ class _CoordinatorRestorableState extends State<CoordinatorRestorable>
     getRestorableConverter: widget.coordinator.getRestorableConverter,
   );
 
+  /// What was last handed to [_restorable], to tell a notification that changed
+  /// the navigation state from one that did not.
+  Map<String, dynamic>? _lastSaved;
+
   void _saveCoordinator() {
     final result = <String, dynamic>{};
     for (final path in widget.coordinator.paths) {
@@ -77,7 +82,9 @@ class _CoordinatorRestorableState extends State<CoordinatorRestorable>
           path.debugLabel != null,
           'NavigationPath must have a debugLabel for restoration to work',
         );
-        result[path.debugLabel!] = path.stack;
+        // Copied: `stack` is a live view of the path, and what is stored here
+        // has to be what the state looked like when it was stored.
+        result[path.debugLabel!] = List<RouteTarget>.of(path.stack);
       }
       if (path is IndexedStackPath) {
         assert(
@@ -88,7 +95,30 @@ class _CoordinatorRestorableState extends State<CoordinatorRestorable>
       }
     }
 
+    // Every assignment re-serialises the lot: `toPrimitives` walks each stack
+    // and builds a URI per route, and it runs on *every* coordinator
+    // notification — most of which leave the navigation state alone. The map is
+    // rebuilt fresh each time, so the framework's own `!=` check never catches
+    // that, and this one does.
+    if (_lastSaved != null && _sameNavigationState(_lastSaved!, result)) return;
+    _lastSaved = result;
     _restorable.value = result;
+  }
+
+  static bool _sameNavigationState(
+    Map<String, dynamic> a,
+    Map<String, dynamic> b,
+  ) {
+    if (a.length != b.length) return false;
+    for (final MapEntry(:key, :value) in a.entries) {
+      final other = b[key];
+      if (value is List && other is List) {
+        if (!listEquals(value, other)) return false;
+      } else if (value != other) {
+        return false;
+      }
+    }
+    return true;
   }
 
   void _saveActiveRoute() {

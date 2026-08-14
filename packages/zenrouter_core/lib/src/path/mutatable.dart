@@ -398,9 +398,13 @@ mixin StackMutatable<T extends RouteTarget> on StackPath<T>
 
       final existingRoute = stack[routeIndex];
       existingRoute.onUpdate(target);
-      notifyListeners();
 
+      // Being handed *itself* transfers nothing — resolving a layout activates
+      // the live instance, and so does restoring — and any pops above have
+      // already notified. Notifying again rebuilds the router subtree and
+      // reports a URI the app is already on.
       if (!existingRoute.deepEquals(target)) {
+        notifyListeners();
         target.onDiscard();
       }
     } else {

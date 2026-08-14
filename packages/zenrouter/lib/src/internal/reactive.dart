@@ -28,11 +28,23 @@ class FlutterListenableMixin implements ListenableMixin {
       _listenable.removeListener(listener);
 }
 
+/// One adapter per listenable, so wrapping the same object twice hands back the
+/// same wrapper.
+///
+/// These conversions sit inside getters that are read on every build —
+/// `canPopListenable` is the common one — and a fresh wrapper each time is a
+/// different object to `ListenableBuilder`, which then drops its listener and
+/// re-registers it on every frame. An `Expando` keeps each wrapper for exactly
+/// as long as the thing it wraps.
+final _mixinAdapters = Expando<ListenableMixin>('zenrouter.listenableMixin');
+final _flutterAdapters = Expando<flutter.Listenable>('zenrouter.listenable');
+
 /// Converts a Flutter [flutter.Listenable] to [ListenableMixin].
 extension ListenableToListenableMixin on flutter.Listenable {
   /// Wraps this listenable as a [ListenableMixin] for
   /// [RouteGuard.canPopListenable].
-  ListenableMixin toListenableMixin() => FlutterListenableMixin(this);
+  ListenableMixin toListenableMixin() =>
+      _mixinAdapters[this] ??= FlutterListenableMixin(this);
 }
 
 /// Adapts a [ListenableMixin] to Flutter's [flutter.Listenable] for use with
@@ -56,5 +68,6 @@ class ListenableMixinToFlutter extends flutter.Listenable {
 extension ListenableMixinToFlutterListenable on ListenableMixin {
   /// Wraps this mixin as a Flutter [flutter.Listenable] for
   /// [ListenableBuilder] / [AnimatedBuilder].
-  flutter.Listenable toFlutterListenable() => ListenableMixinToFlutter(this);
+  flutter.Listenable toFlutterListenable() =>
+      _flutterAdapters[this] ??= ListenableMixinToFlutter(this);
 }

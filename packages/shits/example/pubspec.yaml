@@ -1,0 +1,19 @@
+name: shits_example
+description: Two-page paged sheet, the smallest thing that exercises the whole model.
+publish_to: none
+version: 0.1.0
+
+resolution: workspace
+
+environment:
+  sdk: ^3.8.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  shits: any
+
+dev_dependencies:
+  flutter_lints: ^6.0.0
+  flutter_test:
+    sdk: flutter

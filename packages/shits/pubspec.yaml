@@ -1,0 +1,36 @@
+name: shits
+description: >-
+  A panel that enters from an edge or the centre, resizes to its detents, and hands
+  scrolling off to dragging without being asked to. Sheets, drawers, rails and dialogs
+  from one geometry model.
+version: 0.1.0-dev.1
+
+repository: https://github.com/definev/zenrouter
+homepage: https://github.com/definev/zenrouter/tree/main/packages/shits
+issue_tracker: https://github.com/definev/zenrouter/issues
+
+topics:
+  - sheet
+  - bottom-sheet
+  - drawer
+  - navigation
+
+resolution: workspace
+
+environment:
+  sdk: ^3.8.0
+
+# No third-party dependencies, deliberately. The spring model this package needs is a
+# Flutter SDK factory — `SpringDescription.withDurationAndBounce`, documented as producing
+# the same result as SwiftUI's `spring(duration:bounce:)` — and velocity continuity across
+# a route boundary is `TransitionRoute.createSimulation`, first-party since 3.44.9. What a
+# motion package would have added is four constants, and those are ours to pin.
+dependencies:
+  flutter:
+    sdk: flutter
+  meta: ^1.17.0
+
+dev_dependencies:
+  flutter_lints: ^6.0.0
+  flutter_test:
+    sdk: flutter

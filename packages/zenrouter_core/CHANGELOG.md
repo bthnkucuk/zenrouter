@@ -88,6 +88,14 @@
   layer is holding, and a route carried over from the old stack is not discarded — it is
   re-bound to the path it was already on, as it was before.
 
+- **Replacing the only route on a path releases it exactly once.** That branch resets
+  the path rather than popping it, and `reset` discards whatever is still on the stack —
+  so discarding the outgoing route beside it ran the app's `onDiscard` twice, and
+  released whatever it holds twice with it: a subscription cancelled twice, a controller
+  disposed twice. The classic shape is a login screen replaced by the app's first real
+  page. The discard is now left to `reset`; the result is still settled with the caller's
+  value first, and `reset`'s own completion is silent, so that value stands.
+
 - **`pushReplacement` lands on a path nothing is rendering.** It waited for the outgoing
   route's *page* to report its pop before pushing the replacement, and only the widget layer
   produces that report — so on a path with no mounted renderer (a nested layout that is off

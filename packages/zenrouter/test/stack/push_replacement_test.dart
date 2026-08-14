@@ -109,4 +109,20 @@ void main() {
     expect(discards, 1);
     expect(find.text('leaf-3'), findsOneWidget);
   });
+
+  test('replacing the only route on a path releases it exactly once', () async {
+    // This branch resets the path rather than popping, and `reset` discards
+    // whatever is still on the stack — so discarding here as well ran the app's
+    // `onDiscard` twice, and released whatever it holds twice with it. The
+    // classic shape is a login screen replaced by the app's first real page.
+    final c = TestCoordinator();
+    expect(c.loose.stack, hasLength(1), reason: 'the branch under test');
+    discards = 0;
+
+    unawaited(c.loose.pushReplacement(Leaf(9)));
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    expect(discards, 1);
+    expect(c.loose.stack.map((r) => r.toUri().path), ['/leaf/9']);
+  });
 }

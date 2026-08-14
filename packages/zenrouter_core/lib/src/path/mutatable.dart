@@ -108,8 +108,11 @@ mixin StackMutatable<T extends RouteTarget> on StackPath<T>
     final activeRoute = this.activeRoute;
     if (activeRoute case final activeRoute?) {
       if (stack.length == 1) {
+        // Settled with the caller's result before `reset`, whose own discard
+        // completes with `null` — and silently, so this one stands. The discard
+        // itself is left to `reset`: the route is still on the stack, so doing
+        // it here as well would run the app's `onDiscard` twice.
         activeRoute.completeOnResult(result, coordinator);
-        activeRoute.onDiscard();
         reset();
         return _pushReplacing(target);
       }
@@ -123,8 +126,9 @@ mixin StackMutatable<T extends RouteTarget> on StackPath<T>
       // headless coordinator — waited for a frame that never came and the
       // replacement never landed. It also arrives too late now that the pop and
       // the push land in one frame: the navigator sees a single page update and
-      // never pops the outgoing page. Doing both here is what the
-      // single-entry branch above already does; neither can happen twice.
+      // never pops the outgoing page. The route is already off the stack by
+      // now, so nothing else will discard it — unlike the single-entry branch
+      // above, where `reset` is what does it.
       activeRoute.completeOnResult(result, coordinator, true);
       activeRoute.onDiscard();
       return _pushReplacing(target);

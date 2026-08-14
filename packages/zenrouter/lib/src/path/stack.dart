@@ -527,9 +527,17 @@ class _IndexedStackPathBuilderState<T extends RouteUnique>
     // rebuilt again the next time any other tab is updated.
     // ignore: invalid_use_of_protected_member
     route.didRefresh();
+
+    Widget child = route.build(widget.coordinator, context);
+    if (widget.path.isolateRepaints) {
+      // Without this a tab shares a painting layer with the shell around it, so
+      // an animation inside it repaints the tab bar and its siblings every
+      // frame too.
+      child = RepaintBoundary(child: child);
+    }
     return RestorationScope(
       restorationId: widget.coordinator.tryResolveRouteId(route),
-      child: route.build(widget.coordinator, context),
+      child: child,
     );
   }
 

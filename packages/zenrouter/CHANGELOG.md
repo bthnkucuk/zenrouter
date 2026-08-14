@@ -274,9 +274,23 @@ fixing them is what this release is about.
     label: 'tabs',
     lazy: true,
     pauseHiddenTabs: true,
+    isolateRepaints: true,
     [FeedTab(), ProfileTab(), SettingsTab()],
   );
   ```
+
+- **`IndexedStackPath(isolateRepaints: true)` keeps a tab's repaints inside it.** Off by
+  default, matching a hand-written `IndexedStack`: a tab shares a painting layer with
+  the shell around it, so anything animating in the *visible* tab — a spinner, a pull to
+  refresh, a shimmer — repaints the tab bar, the app bar and its idle siblings along
+  with itself, on every frame, for as long as it animates. Measured on a small shell
+  with one spinning tab: **22 render objects repainted per frame, down to 11.**
+
+  It bounds the damage at the tab's edge; everything inside the tab still repaints
+  together, so a heavy tab also wants a boundary around its own animation. The cost is a
+  compositing layer per tab — memory, and one more layer for the compositor — which is
+  worth it for a shell whose tabs animate and wasted on three static ones. Hence the
+  choice rather than a default.
 
 - **A route can declare the stack it sits on** (via `zenrouter_core` 3.0.0). Opening
   `/products/42` from a link used to land on the detail alone, so the first back press

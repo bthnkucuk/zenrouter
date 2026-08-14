@@ -27,15 +27,17 @@ class MainApp extends StatelessWidget {
 final appCoordinator = AppCoordinator();
 
 class AppCoordinator extends Coordinator<AppRoute> with CoordinatorDebug {
-  /// Flip either flag and hot restart to compare — see [_TabBody].
+  /// Flip any of the three and hot restart to compare — see [_TabBody].
   ///
-  /// They are separate on purpose: [lazy] is about a tab nobody has opened,
-  /// [pauseHiddenTabs] about one that is open but off screen.
+  /// They are separate on purpose, because each is about a different tab:
+  /// [lazy] one nobody has opened, [pauseHiddenTabs] one that is open but off
+  /// screen, [isolateRepaints] the one you are looking at.
   late final tabPath = IndexedStackPath.createWith(
     coordinator: this,
     label: 'tabs',
     lazy: true,
     pauseHiddenTabs: true,
+    isolateRepaints: true,
     [HomeTab(), SearchTab(), ProfileTab()],
   )..bindLayout(TabLayout.new);
 
@@ -201,6 +203,14 @@ class ProfileTab extends AppRoute {
 /// keeps every child ticking, so by default a hidden tab goes on animating — and
 /// rebuilding — for as long as the app is open. With `pauseHiddenTabs` it stops
 /// on leaving and picks up on return.
+///
+/// **What its animation costs.** The spinning dot is inside a tab, but without
+/// `isolateRepaints` it shares a painting layer with everything around it, so
+/// the tab bar and the app bar are repainted on every one of its frames as
+/// well. It is the one difference here you cannot see in the UI — set
+/// `debugRepaintRainbowEnabled = true` and watch instead: with the flag off the
+/// borders around the whole shell cycle colours while the dot spins, and with
+/// it on only the tab's own do.
 ///
 /// **That it remembers.** Every tab's field uses the *same* `restorationId`, so
 /// it is also the check that the tabs get a restoration scope each: each tab

@@ -24,9 +24,14 @@ import 'package:zenrouter_core/zenrouter_core.dart';
 /// - Routes cannot be pushed or popped, only activated
 class IndexedStackPath<T extends RouteTarget> extends StackPath<T>
     with StackNavigatable<T>, RestorablePath<T, int, int>, ChangeNotifier {
-  IndexedStackPath._(super.stack, {super.debugLabel, super.coordinator})
-    : assert(stack.isNotEmpty, 'Read-only path must have at least one route'),
-      super() {
+  IndexedStackPath._(
+    super.stack, {
+    super.debugLabel,
+    super.coordinator,
+    this.lazy = false,
+    this.pauseHiddenTabs = false,
+  }) : assert(stack.isNotEmpty, 'Read-only path must have at least one route'),
+       super() {
     for (final path in stack) {
       /// Set the output of every route to null since this cannot pop
       path.completeOnResult(null, null);
@@ -41,7 +46,15 @@ class IndexedStackPath<T extends RouteTarget> extends StackPath<T>
     List<T> stack, {
     String? label,
     Coordinator? coordinator,
-  }) => IndexedStackPath._(stack, debugLabel: label, coordinator: coordinator);
+    bool lazy = false,
+    bool pauseHiddenTabs = false,
+  }) => IndexedStackPath._(
+    stack,
+    debugLabel: label,
+    coordinator: coordinator,
+    lazy: lazy,
+    pauseHiddenTabs: pauseHiddenTabs,
+  );
 
   /// Creates an [IndexedStackPath] associated with a [Coordinator].
   ///
@@ -51,7 +64,56 @@ class IndexedStackPath<T extends RouteTarget> extends StackPath<T>
     List<T> stack, {
     required Coordinator coordinator,
     required String label,
-  }) => IndexedStackPath._(stack, debugLabel: label, coordinator: coordinator);
+    bool lazy = false,
+    bool pauseHiddenTabs = false,
+  }) => IndexedStackPath._(
+    stack,
+    debugLabel: label,
+    coordinator: coordinator,
+    lazy: lazy,
+    pauseHiddenTabs: pauseHiddenTabs,
+  );
+
+  /// Whether a tab is built only once it has been visited.
+  ///
+  /// Off by default, which is what an indexed stack normally means: every tab
+  /// is built up front, so switching costs nothing and every tab's `initState`
+  /// runs at startup.
+  ///
+  /// Turning it on defers a tab's widgets — and whatever their `initState` does:
+  /// analytics, prefetching, subscriptions — until the tab is first shown. From
+  /// then on it is kept alive exactly as before, with its state intact across
+  /// further switches.
+  ///
+  /// It is a behaviour change, which is why it is opt-in: a tab that counted on
+  /// doing work at startup will not. Nothing else moves — the tabs, their order
+  /// and their state once visited are the same. It is not a rendering
+  /// optimisation either; Flutter already skips paint, hit-testing and
+  /// semantics for hidden tabs.
+  ///
+  /// See also [pauseHiddenTabs], which is about a tab that *is* built.
+  final bool lazy;
+
+  /// Whether a tab stops ticking while it is off screen.
+  ///
+  /// Off by default, matching Flutter: `IndexedStack` keeps every child
+  /// ticking, so an animation in a tab the user cannot see goes on rebuilding
+  /// it on every frame for as long as the app runs. That is usually the largest
+  /// standing cost of a tab shell, and [lazy] does not address it — a tab that
+  /// has been visited once stays mounted and ticking.
+  ///
+  /// Turning it on wraps each hidden tab in a disabled `TickerMode`. Two
+  /// consequences follow, and they are the reason this is not the default:
+  ///
+  /// - An animation **in flight** when the tab leaves freezes where it was and
+  ///   resumes on return, instead of finishing off screen.
+  /// - `await controller.forward()` does not complete while the tab is hidden.
+  ///   A tab that awaits an animation before doing something else waits for the
+  ///   user to come back.
+  ///
+  /// So it suits tabs whose animations are decoration, and not tabs that drive
+  /// logic from them.
+  final bool pauseHiddenTabs;
 
   /// The key used to identify this type in [defineLayoutBuilder].
   static const key = PathKey('IndexedStackPath');

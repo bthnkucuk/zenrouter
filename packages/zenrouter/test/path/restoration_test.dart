@@ -241,6 +241,10 @@ void main() {
   });
 
   group('IndexedStackPathBuilder Restoration Limitation', () {
+    // The builder restores nothing of its own — which tab is active is the
+    // path's state, restored by its `RestorablePath`. It used to accept a
+    // `restorationId` that was never read, and that the layout builder could
+    // not have supplied anyway.
     testWidgets(
       'verifies IndexedStackPathBuilder does NOT restore state autonomously',
       (tester) async {
@@ -258,7 +262,6 @@ void main() {
               body: IndexedStackPathBuilder(
                 path: path,
                 coordinator: coordinator,
-                restorationId: 'tabs',
               ),
             ),
           ),

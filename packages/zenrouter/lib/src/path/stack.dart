@@ -478,7 +478,6 @@ class IndexedStackPathBuilder<T extends RouteUnique> extends StatefulWidget {
     super.key,
     required this.path,
     required this.coordinator,
-    this.restorationId,
   });
 
   /// The path that maintains the indexed stack state.
@@ -486,8 +485,6 @@ class IndexedStackPathBuilder<T extends RouteUnique> extends StatefulWidget {
 
   /// The coordinator used to resolve and build routes in the stack.
   final Coordinator coordinator;
-
-  final String? restorationId;
 
   @override
   State<IndexedStackPathBuilder<T>> createState() =>
@@ -498,14 +495,91 @@ class _IndexedStackPathBuilderState<T extends RouteUnique>
     extends State<IndexedStackPathBuilder<T>> {
   List<Widget>? _children;
 
-  List<Widget> _buildChildren(List<T> stack) =>
-      stack.map((ele) => ele.build(widget.coordinator, context)).toList();
+  /// The entries [_children] was built from, so a rebuild can tell a changed
+  /// set of tabs from a changed *active* tab.
+  List<T> _builtFrom = const [];
+
+  /// Tabs that have never been shown, when the path is lazy. They render as
+  /// nothing until they are, and are built exactly once when they are.
+  final Set<int> _pending = <int>{};
+
+  /// Wraps a tab in a restoration scope of its own.
+  ///
+  /// Tabs are siblings in one subtree and, unlike a `NavigationPath`, have no
+  /// navigator to namespace them, so without this two tabs holding a widget
+  /// with the same `restorationId` — a shared form, say — would ask the same
+  /// bucket for their state. The id already spans the layout chain, so it is
+  /// unique on its own.
+  ///
+  /// A null id turns restoration off for that tab, which happens when there is
+  /// nothing to key it by (an unlabelled path) or nothing above to restore into
+  /// (an app that does not restore at all).
+  Widget _tab(T route) => RestorationScope(
+    restorationId: widget.coordinator.tryResolveRouteId(route),
+    child: route.build(widget.coordinator, context),
+  );
+
+  /// The children, built once and reused.
+  ///
+  /// Switching tabs must not rebuild anything — an indexed stack exists so
+  /// every tab keeps its state — so the cache is kept for as long as the
+  /// entries are the same instances. Identity is the trigger, not equality: a
+  /// tab route stays the same object across builds, while a different path
+  /// brings different objects and must not go on rendering the old ones.
+  List<Widget> _childrenFor(List<T> stack, int activeIndex) {
+    final cached = _children;
+    var reusable = cached != null && _builtFrom.length == stack.length;
+    if (reusable) {
+      for (var index = 0; index < stack.length; index++) {
+        if (identical(_builtFrom[index], stack[index])) continue;
+        reusable = false;
+        break;
+      }
+    }
+
+    if (!reusable) {
+      _builtFrom = List<T>.of(stack);
+      _pending.clear();
+      if (widget.path.lazy) {
+        for (var index = 0; index < stack.length; index++) {
+          if (index != activeIndex) _pending.add(index);
+        }
+      }
+      return _children = [
+        for (var index = 0; index < stack.length; index++)
+          if (_pending.contains(index))
+            const SizedBox.shrink()
+          else
+            _tab(stack[index]),
+      ];
+    }
+
+    // Reused, except for a tab being shown for the first time: it takes the
+    // place of its placeholder and is kept from then on.
+    if (_pending.remove(activeIndex)) {
+      final next = List<Widget>.of(cached!);
+      next[activeIndex] = _tab(stack[activeIndex]);
+      return _children = next;
+    }
+    return cached!;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final activeIndex = widget.path.activeIndex;
+    final children = _childrenFor(widget.path.stack, activeIndex);
     return IndexedStack(
-      index: widget.path.activeIndex,
-      children: _children ??= _buildChildren(widget.path.stack),
+      index: activeIndex,
+      children: [
+        for (var index = 0; index < children.length; index++)
+          // Flutter's `IndexedStack` keeps every child ticking, so an animation
+          // in a tab the user cannot see rebuilds it on every frame for as long
+          // as the app runs.
+          if (widget.path.pauseHiddenTabs)
+            TickerMode(enabled: index == activeIndex, child: children[index])
+          else
+            children[index],
+      ],
     );
   }
 }

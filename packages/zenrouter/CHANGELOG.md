@@ -176,7 +176,61 @@ fixing them is what this release is about.
   binding is cleared and `onDidPop` runs, where all three used to be skipped. An
   `await coordinator.push(...)` on such a screen used to hang for good.
 
+- **`IndexedStackPathBuilder` lets go of the previous path's tabs.** Its children were
+  built once and cached forever (`_children ??=`), with nothing to invalidate them, so a
+  builder handed a different path kept rendering the old path's tabs — the new ones were
+  never built. The cache is now keyed on the entries it was built from, compared by
+  identity, so switching tabs still rebuilds nothing while a different set of tabs
+  replaces the old one. Reachable only by using the widget directly; the default layout
+  builder resolves the path from the coordinator, where it does not change.
+
+- **Two tabs can hold the same `restorationId` without colliding.** A `NavigationPath`
+  gets a restoration namespace from its `Navigator`; an indexed path has no navigator, so
+  its tabs shared one — and `restorationId: 'field'` is exactly what a form widget shared
+  between tabs would use. Each tab is now wrapped in a `RestorationScope` of its own,
+  keyed by the route's restoration id.
+
+  Tabs with *distinct* ids already restored, and still do; so does the active tab, by way
+  of the path's `RestorablePath`. A tab whose path has no label cannot be keyed at all, so
+  restoration is off for it rather than an error.
+
+- **`IndexedStackPathBuilder.restorationId` is removed.** It was accepted and never read,
+  and could not have been supplied anyway: the layout builder passed it as a fourth
+  positional argument that `RouteLayoutBuilder` does not declare, so it was always `null`.
+  The widget now derives what it needs from the coordinator. Delete the argument if you
+  passed one.
+
 ### Added
+
+- **`IndexedStackPath(lazy: true)` builds a tab when it is first opened.** Off by
+  default, which is what an indexed stack normally means: every tab is built up front.
+  Turning it on defers a tab's widgets, and whatever their `initState` does — analytics,
+  prefetching, subscriptions — until the tab is first shown; from then on it is kept
+  alive exactly as before. A behaviour change, hence opt-in: a tab that counted on doing
+  work at startup will not. It is not a rendering optimisation — Flutter already skips
+  paint, hit-testing and semantics for hidden tabs.
+
+- **`IndexedStackPath(pauseHiddenTabs: true)` stops a tab ticking while it is off
+  screen.** Off by default, matching Flutter: `IndexedStack` keeps every child ticking,
+  so an animation in a tab the user cannot see goes on rebuilding it on every frame for
+  as long as the app runs. That is usually the largest standing cost of a tab shell, and
+  `lazy` does not address it — a tab visited once stays mounted and ticking.
+
+  Separate from `lazy` because the two are independent and their risks differ. Two
+  consequences follow from this one, and are why it is not the default: an animation in
+  flight when the tab leaves freezes and resumes on return instead of finishing off
+  screen, and `await controller.forward()` does not complete until the user comes back.
+  It suits tabs whose animations are decoration, not tabs that drive logic from them.
+
+  ```dart
+  IndexedStackPath.createWith(
+    coordinator: this,
+    label: 'tabs',
+    lazy: true,
+    pauseHiddenTabs: true,
+    [FeedTab(), ProfileTab(), SettingsTab()],
+  );
+  ```
 
 - **A route can declare the stack it sits on** (via `zenrouter_core` 3.0.0). Opening
   `/products/42` from a link used to land on the detail alone, so the first back press

@@ -81,7 +81,7 @@ final kDefaultLayoutBuilderTable = Map.unmodifiable(<
       },
     );
   },
-  IndexedStackPath.key: (coordinatorCore, path, layout, [restorationId]) {
+  IndexedStackPath.key: (coordinatorCore, path, layout) {
     final coordinator = requireFlutterCoordinator(
       coordinatorCore,
       pathKey: IndexedStackPath.key,
@@ -93,7 +93,6 @@ final kDefaultLayoutBuilderTable = Map.unmodifiable(<
         return IndexedStackPathBuilder(
           path: indexedStackPath,
           coordinator: coordinator,
-          restorationId: restorationId,
         );
       },
     );

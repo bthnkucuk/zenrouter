@@ -59,6 +59,22 @@ mixin CoordinatorRestoration<T extends RouteUnique> on CoordinatorCore<T> {
   /// This ID is used to restore the root path when the app is re-launched.
   String get rootRestorationId => root.debugLabel ?? 'root';
 
+  /// The restoration ID for [route], or `null` if it cannot have one.
+  ///
+  /// A route's id spells out the paths it sits under, so every one of them must
+  /// be labelled. A path registered on a coordinator always is, but the widgets
+  /// can be used on their own with a path that is not — and a renderer asking
+  /// on a route's behalf should not turn that into a crash. Restoration is
+  /// simply off for such a subtree, which is where it was before it asked.
+  String? tryResolveRouteId(covariant T route) {
+    RouteLayout? layout = route.resolveParentLayout(this);
+    while (layout != null) {
+      if (layout.resolvePath(this).debugLabel == null) return null;
+      layout = layout.resolveParentLayout(this);
+    }
+    return resolveRouteId(route);
+  }
+
   /// Resolves the restoration ID for a given route.
   ///
   /// This ID is used to restore the route when the app is re-launched.

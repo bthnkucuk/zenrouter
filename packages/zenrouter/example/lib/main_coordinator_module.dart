@@ -958,7 +958,7 @@ class SettingsCoordinator extends Coordinator<AppRoute> {
   }
 }
 
-// Settings Layout — master-detail sidebar
+// Settings Layout — master-detail, the master in a drawer
 class SettingsLayout extends AppRoute with RouteLayout<AppRoute> {
   @override
   NavigationPath<AppRoute> resolvePath(MainCoordinator coordinator) =>
@@ -968,54 +968,60 @@ class SettingsLayout extends AppRoute with RouteLayout<AppRoute> {
   Widget build(covariant MainCoordinator coordinator, BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        // `Builder`, because `Scaffold.of` has to be asked from a context below
+        // the Scaffold and this method builds it.
         leading: BackButton(onPressed: () => coordinator.tryPop()),
         title: const Text('Settings'),
+        actions: [
+          Builder(
+            builder: (context) => IconButton(
+              icon: const Icon(Icons.menu),
+              tooltip: MaterialLocalizations.of(context).openAppDrawerTooltip,
+              onPressed: () => Scaffold.of(context).openEndDrawer(),
+            ),
+          ),
+        ],
         backgroundColor: Colors.purple[700],
         foregroundColor: Colors.white,
       ),
-      body: Row(
-        children: [
-          SizedBox(
-            width: 220,
-            child: ListenableBuilder(
-              listenable: resolvePath(coordinator),
-              builder: (context, _) {
-                return ListView(
-                  padding: const EdgeInsets.all(8),
-                  children: [
-                    _SettingsNavTile(
-                      icon: Icons.tune,
-                      label: 'General',
-                      isActive:
-                          coordinator.activePath.stack.last
-                              is GeneralSettingsRoute,
-                      onTap: () => coordinator.navigate(GeneralSettingsRoute()),
-                    ),
-                    _SettingsNavTile(
-                      icon: Icons.person,
-                      label: 'Account',
-                      isActive:
-                          coordinator.activePath.stack.last
-                              is AccountSettingsRoute,
-                      onTap: () => coordinator.navigate(AccountSettingsRoute()),
-                    ),
-                    _SettingsNavTile(
-                      icon: Icons.lock,
-                      label: 'Privacy',
-                      isActive:
-                          coordinator.activePath.stack.last
-                              is PrivacySettingsRoute,
-                      onTap: () => coordinator.navigate(PrivacySettingsRoute()),
-                    ),
-                  ],
-                );
-              },
-            ),
+      endDrawer: Drawer(
+        child: Material(
+          child: ListenableBuilder(
+            listenable: resolvePath(coordinator),
+            builder: (context, _) {
+              // Closed on the way out rather than by the tile, so every
+              // destination behaves the same and none of them can forget.
+              void go(AppRoute route) {
+                Scaffold.of(context).closeEndDrawer();
+                coordinator.navigate(route);
+              }
+
+              return ListView(
+                padding: const EdgeInsets.all(8),
+                children: [
+                  DrawerHeader(child: Column(children: [Text('Drawer')])),
+                  ElevatedButton.icon(
+                    onPressed: () => go(GeneralSettingsRoute()),
+                    icon: const Icon(Icons.tune),
+                    label: const Text('General'),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () => go(AccountSettingsRoute()),
+                    icon: const Icon(Icons.person),
+                    label: const Text('Account'),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () => go(PrivacySettingsRoute()),
+                    icon: const Icon(Icons.lock),
+                    label: const Text('Privacy'),
+                  ),
+                ],
+              );
+            },
           ),
-          const VerticalDivider(width: 1),
-          Expanded(child: buildPath(coordinator)),
-        ],
+        ),
       ),
+      body: buildPath(coordinator),
     );
   }
 }
@@ -1210,42 +1216,6 @@ class NotFoundRoute extends AppRoute {
           ],
         ),
       ),
-    );
-  }
-}
-
-// ============================================================================
-// Helper Widgets
-// ============================================================================
-
-class _SettingsNavTile extends StatelessWidget {
-  const _SettingsNavTile({
-    required this.icon,
-    required this.label,
-    required this.isActive,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool isActive;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: Icon(icon, color: isActive ? Colors.purple : Colors.grey),
-      title: Text(
-        label,
-        style: TextStyle(
-          fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-          color: isActive ? Colors.purple : Colors.black87,
-        ),
-      ),
-      selected: isActive,
-      selectedTileColor: Colors.purple.withValues(alpha: 0.1),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      onTap: onTap,
     );
   }
 }

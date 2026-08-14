@@ -11,7 +11,8 @@ description: >
   GuardRule canPop, canPopRule, guardRule, layoutBuilder, CoordinatorLayoutBuilder,
   RouteLayoutBuilder, parseRouteFromUri return type, createWith, bindLayout,
   defineLayoutBuilder, routerConfig, routeInformationProvider, browser history,
-  back button, replace history entry.
+  back button, replace history entry, CoordinatorNavigatorObserver, observers,
+  observersBuilder, NavigatorObserver, observer.navigator == null.
 ---
 
 # ZenRouter Migration Skill
@@ -60,10 +61,10 @@ dev_dependencies:
 ## 3.0.0 — Equality contract repair
 
 **Expected blast radius: zero for most projects.** This release fixes a broken
-`==` / `hashCode` contract. Bump the versions, run the analyzer, run the tests. Four
-things can actually need work — check them, then stop. The analyzer catches only the
-first two: the third applies to web targets, and the fourth shows up as a debug assert
-at runtime.
+`==` / `hashCode` contract. Bump the versions, run the analyzer, run the tests. Five
+things can actually need work — check them, then stop. The analyzer catches the first
+two and flags the fifth as a deprecation; the third applies to web targets, and the
+fourth shows up as a debug assert at runtime.
 
 ### What changed
 
@@ -180,6 +181,31 @@ navigating to the wrong screen before. Fix the `props`, do not silence the asser
 The mirror also asserts: `props` containing per-instance state (a completer, a callback,
 a timestamp) makes identical destinations compare unequal, so `pushOrMoveToTop` pushes
 duplicates.
+
+### Check 5 — `CoordinatorNavigatorObserver.observers`
+
+Deprecated. It gave one list to every navigator a coordinator runs, which Flutter
+forbids — `NavigatorState.initState` asserts `observer.navigator == null`.
+
+```bash
+rg -n "CoordinatorNavigatorObserver|get observers" lib/
+```
+
+```dart
+// Before
+@override
+List<NavigatorObserver> get observers => [_analytics];
+
+// After
+@override
+NavigatorObserverListGetter get observersBuilder =>
+    () => [AnalyticsObserver(analyticsSink)];
+```
+
+The builder must return **new** observers each call — it is invoked once per navigator.
+Anything that has to outlive a navigator (counters, subscriptions) belongs in an object
+the app owns and passes in, not in the observer itself. Do not "fix" this by returning a
+cached instance; that is the shared-instance case the assert is about.
 
 ### Cleanup opportunity — data that was pushed into `props` to force a refresh
 

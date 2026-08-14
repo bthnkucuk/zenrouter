@@ -25,8 +25,8 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    // Pass the observer to the coordinator via a getter function
-    coordinator = AppCoordinator(observers: () => [LoggingNavigatorObserver()]);
+    // The observers are built per navigator; the log they write to is shared.
+    coordinator = AppCoordinator(log: NavigationLog());
   }
 
   @override
@@ -55,13 +55,30 @@ class _MyAppState extends State<MyApp> {
 /// A custom NavigatorObserver that logs all navigation events.
 /// This demonstrates how observers passed to the Coordinator receive
 /// navigation callbacks.
+/// Where the observers write.
+///
+/// The observers themselves are per-navigator — Flutter binds each one to a
+/// single [Navigator], so a coordinator running several of them needs a fresh
+/// instance for each. What they report belongs to the app, not to any one
+/// navigator, so it lives here.
+class NavigationLog extends ChangeNotifier {
+  final List<String> entries = [];
+
+  void add(String entry) {
+    entries.add(entry);
+    notifyListeners();
+  }
+}
+
 class LoggingNavigatorObserver extends NavigatorObserver {
-  final List<String> navigationLog = [];
+  LoggingNavigatorObserver(this.log);
+
+  final NavigationLog log;
 
   void _log(String message) {
     final timestamp = DateTime.now().toIso8601String();
     final logEntry = '[$timestamp] $message';
-    navigationLog.add(logEntry);
+    log.add(logEntry);
     developer.log(logEntry, name: 'NavigatorObserver');
   }
 
@@ -200,10 +217,9 @@ class HomeView extends StatelessWidget {
   }
 
   void _showNavigationLog(BuildContext context) {
-    final observer = coordinator.observers.first as LoggingNavigatorObserver;
     showModalBottomSheet(
       context: context,
-      builder: (context) => NavigationLogSheet(log: observer.navigationLog),
+      builder: (context) => NavigationLogSheet(log: coordinator.log.entries),
     );
   }
 }
@@ -292,8 +308,8 @@ class SettingsView extends StatelessWidget {
               title: const Text('Implementation'),
               subtitle: const Text(
                 '1. Mix in CoordinatorNavigatorObserver\n'
-                '2. Override the observers getter\n'
-                '3. Pass observers via constructor',
+                '2. Override observersBuilder to return fresh observers\n'
+                '3. Have them report into state you own',
               ),
             ),
           ),
@@ -311,10 +327,9 @@ class SettingsView extends StatelessWidget {
   }
 
   void _showNavigationLog(BuildContext context) {
-    final observer = coordinator.observers.first as LoggingNavigatorObserver;
     showModalBottomSheet(
       context: context,
-      builder: (context) => NavigationLogSheet(log: observer.navigationLog),
+      builder: (context) => NavigationLogSheet(log: coordinator.log.entries),
     );
   }
 }
@@ -392,24 +407,17 @@ class NavigationLogSheet extends StatelessWidget {
 
 class AppCoordinator extends Coordinator<AppRoute>
     with CoordinatorNavigatorObserver {
-  AppCoordinator({
-    NavigatorObserverListGetter observers = kEmptyNavigatorObserverList,
-  }) : _observersGetter = observers;
+  AppCoordinator({required this.log});
 
-  final NavigatorObserverListGetter _observersGetter;
+  /// Shared by every observer this coordinator builds.
+  final NavigationLog log;
 
-  /// The observers getter is called by the navigator to get the list
-  /// of observers. Using a getter function allows for dynamic observer lists.
-  ///
-  /// CAUTION:
-  /// Don't reuse the same observer inside the getter function unless you know
-  /// what you are doing.
-  ///
-  /// Each time the getter is called, it's expected to return a fresh instance
-  /// of the observer. And inner `Coordinator` will handle caching of the observers
-  /// for you.
+  /// Called once per [Navigator], and the result kept for that navigator's
+  /// lifetime. Return a *new* observer each call: an observer belongs to one
+  /// navigator, and a coordinator runs several at once.
   @override
-  List<NavigatorObserver> get observers => _observersGetter();
+  NavigatorObserverListGetter get observersBuilder =>
+      () => [LoggingNavigatorObserver(log)];
 
   @override
   FutureOr<AppRoute> parseRouteFromUri(Uri uri) {

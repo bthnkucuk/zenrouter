@@ -37,6 +37,35 @@
   Every built-in transition (`.material`, `.cupertino`, `.sheet`, `.dialog`, `.none`)
   forwards the key unchanged, so they need no action.
 
+- **`CoordinatorNavigatorObserver.observers` is deprecated in favour of
+  `observersBuilder`.** The old contract was a single list applying to *every*
+  `NavigationPath`, which Flutter forbids: `NavigatorState.initState` asserts
+  `observer.navigator == null`, because an observer belongs to one navigator. A
+  coordinator runs several at once — that is what layouts are — so sharing instances
+  tripped that assert in debug and, in release, silently reassigned the observer so the
+  navigator that had it stopped being reported on.
+
+  There was no correct way to implement the old getter:
+
+  | Implementation | Result |
+  |---|---|
+  | `final observers = [MyObserver()]` | asserts as soon as a second navigator exists |
+  | `get observers => [MyObserver()]` | no assert, but a new instance on every read — the observers never accumulate anything |
+
+  `observersBuilder` is called **once per navigator** and its result kept for that
+  navigator's lifetime:
+
+  ```dart
+  @override
+  NavigatorObserverListGetter get observersBuilder =>
+      () => [LoggingNavigatorObserver(myLogSink)];
+  ```
+
+  Return a *fresh* observer per call — that is the point — and let them report into
+  state you own, which is what survives. `observers` still works for one more major and
+  now defaults to `const []`, so existing overrides keep running; they remain subject to
+  the assert above.
+
 #### One instance, one entry
 
 Pushing the *same route instance* twice was never supported — one instance carries a

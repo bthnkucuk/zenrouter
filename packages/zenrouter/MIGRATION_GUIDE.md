@@ -141,7 +141,31 @@ identify the destination.
 Query-only differences are not flagged: `RouteQueryParameters` is meant to keep a route's
 identity while its queries change.
 
-**4. Did you annotate a `pageBuilder` parameter explicitly?**
+**4. Do you use `CoordinatorNavigatorObserver`?**
+
+`observers` is deprecated; move to `observersBuilder`. The old getter handed one list to
+every navigator the coordinator runs, and Flutter binds an observer to exactly one
+navigator — so with any layout, the app hit
+`'observer.navigator == null': is not true` in debug, and in release the observer was
+silently reassigned.
+
+```dart
+// Before — one instance shared by every navigator
+@override
+List<NavigatorObserver> get observers => [_analytics];
+
+// After — one instance per navigator, reporting into state you keep
+@override
+NavigatorObserverListGetter get observersBuilder =>
+    () => [AnalyticsObserver(analyticsSink)];
+```
+
+Returning a fresh list of the *same* instances does not help — `listEquals` compares by
+identity, so they are still shared. Returning fresh *instances* from the old getter
+avoided the assert but rebuilt the observers on every read, so nothing they collected
+survived. Put what must survive in an object you own and pass it to each observer.
+
+**5. Did you annotate a `pageBuilder` parameter explicitly?**
 
 Lambdas are unaffected — the type is inferred:
 

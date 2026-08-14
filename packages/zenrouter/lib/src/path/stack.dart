@@ -104,14 +104,30 @@ class _NavigationStackState<T extends RouteTarget>
 
   NavigationPathRestorable<T>? _restorable;
 
+  /// Observers this navigator owns, built once and kept.
+  List<NavigatorObserver> _builtObservers = const [];
+
   void _updateObservers() {
-    _observers = switch (widget.coordinator) {
-      CoordinatorNavigatorObserver coordinator => [
-        ...coordinator.observers,
-        ...widget.observers,
-      ],
-      _ => widget.observers,
-    };
+    final coordinator = widget.coordinator;
+    if (coordinator is! CoordinatorNavigatorObserver) {
+      _observers = widget.observers;
+      return;
+    }
+
+    // Built once per navigator and reused. Calling the builder again would
+    // hand this navigator fresh instances, losing whatever the previous ones
+    // had accumulated — and a navigator may not share instances with the
+    // sibling navigators a coordinator runs alongside it.
+    if (_builtObservers.isEmpty) {
+      _builtObservers = coordinator.observersBuilder();
+    }
+
+    _observers = [
+      ..._builtObservers,
+      // ignore: deprecated_member_use_from_same_package
+      ...coordinator.observers,
+      ...widget.observers,
+    ];
   }
 
   @override
@@ -273,13 +289,12 @@ class _NavigationStackState<T extends RouteTarget>
     _restorable!.value = widget.path.stack;
   }
 
-  bool coordinatorEquals(Coordinator? a, Coordinator? b) {
-    if (a is CoordinatorNavigatorObserver &&
-        b is CoordinatorNavigatorObserver) {
-      return listEquals(a.observers, b.observers);
-    }
-    return false;
-  }
+  /// Whether both widgets name the same coordinator.
+  ///
+  /// Compared by identity rather than by observer list: the observers this
+  /// navigator owns were built for it and must survive a rebuild, so the only
+  /// thing worth reacting to is the coordinator being swapped out entirely.
+  bool coordinatorEquals(Coordinator? a, Coordinator? b) => identical(a, b);
 
   @override
   void didUpdateWidget(covariant NavigationStack<T> oldWidget) {
@@ -291,8 +306,12 @@ class _NavigationStackState<T extends RouteTarget>
       _previousRoutes = [];
       _updatePages();
     }
-    if (!listEquals(oldWidget.observers, widget.observers) ||
-        !coordinatorEquals(oldWidget.coordinator, widget.coordinator)) {
+    if (!coordinatorEquals(oldWidget.coordinator, widget.coordinator)) {
+      // A different coordinator owns this navigator now, so its observers do
+      // not belong to it any more.
+      _builtObservers = const [];
+      _updateObservers();
+    } else if (!listEquals(oldWidget.observers, widget.observers)) {
       _updateObservers();
     }
   }

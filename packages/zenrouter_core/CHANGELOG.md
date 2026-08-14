@@ -78,6 +78,16 @@
 
 ### Fixed
 
+- **A route dropped by a wholesale stack replacement is told it was dropped.** Setting a
+  path's stack in one commit cleared the old list and rebuilt it, so a route that was on
+  the path and is not in the new one got no `onDiscard` and kept pointing at a path it
+  was no longer on — whatever it releases there leaked, and it stayed reachable. `clear`
+  and `dispose` both keep that contract, and `applyStack` kept it by hand; the primitive
+  under all of them did not, which is how restoring a path lost it. Membership is decided
+  by identity, so an equal-but-distinct replacement still retires the instance the widget
+  layer is holding, and a route carried over from the old stack is not discarded — it is
+  re-bound to the path it was already on, as it was before.
+
 - **`pushReplacement` lands on a path nothing is rendering.** It waited for the outgoing
   route's *page* to report its pop before pushing the replacement, and only the widget layer
   produces that report — so on a path with no mounted renderer (a nested layout that is off

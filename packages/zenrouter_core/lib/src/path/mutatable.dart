@@ -225,9 +225,7 @@ mixin StackMutatable<T extends RouteTarget> on StackPath<T>
         _popApply(result, replacesHistory: replacesHistory),
       );
     }
-    return _enqueue(
-      () => _popLocked(result, replacesHistory: replacesHistory),
-    );
+    return _enqueue(() => _popLocked(result, replacesHistory: replacesHistory));
   }
 
   /// The mutating body of [pop]. Must only run from inside [_enqueue].
@@ -280,18 +278,8 @@ mixin StackMutatable<T extends RouteTarget> on StackPath<T>
   ///
   /// Guards are not consulted — the caller declared the target stack.
   void applyStack(List<T> next) {
-    final dropped = [
-      for (final route in _stack)
-        if (!next.any((n) => identical(n, route))) route,
-    ];
-
+    // `bindStack` discards and unbinds whatever `next` leaves behind.
     bindStack(next);
-
-    for (final route in dropped) {
-      route.onDiscard();
-      route.clearStackPath();
-    }
-
     _markHistory(replaces: false);
     notifyListeners();
   }

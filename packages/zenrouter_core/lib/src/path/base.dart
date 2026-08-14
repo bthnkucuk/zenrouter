@@ -57,11 +57,28 @@ abstract class StackPath<T extends RouteTarget> with ListenableObject {
 
   @protected
   void bindStack(List<T> stack) {
+    // A route that is not in the incoming stack is leaving the path, and a
+    // route leaving a path is told — the same contract `clear` and `dispose`
+    // keep. Identity, not equality: an equal-but-distinct route is a different
+    // entry, and the one being replaced is the one that goes.
+    final dropped = [
+      for (final route in _stack)
+        if (!stack.any((n) => identical(n, route))) route,
+    ];
+
     _stack.clear();
     for (final route in stack) {
       route.isPopByPath = false;
       route.bindStackPath(this);
       _stack.add(route);
+    }
+
+    // After binding, so an `onDiscard` that reads the path back sees the stack
+    // it is being told about rather than a half-torn-down one. A carried-over
+    // route is never in `dropped`, so no order could touch it.
+    for (final route in dropped) {
+      route.onDiscard();
+      route.clearStackPath();
     }
   }
 

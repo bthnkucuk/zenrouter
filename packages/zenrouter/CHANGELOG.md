@@ -87,6 +87,22 @@ fixing them is what this release is about.
 
 ### Fixed
 
+- **A back press that reaches an outer navigator no longer discards a nested section.**
+  A layout is one page to the navigator it sits on, however deep the stack it owns. So a
+  back that reached that navigator — an Android system gesture, a `Navigator.maybePop`
+  anywhere above — popped the layout entire, and the section under it was reset with it:
+  from `/settings/privacy` you landed on `/home/tabs/settings` rather than
+  `/settings/general`. `Coordinator.tryPop` has always taken the innermost path first;
+  the page simply never told the navigator that.
+
+  A layout page now reports `canPop: false` while a path below it still has somewhere to
+  go, and hands the press back to `tryPop`. Nothing is asked of the app: this used to
+  need a `canPopWith` + `popGuardWith` pair on every shell, and `canPopWith` alone was
+  not even enough — the refusal popped the layout's own path anyway.
+
+  Only layout routes are affected. An ordinary page answers on a type test, does not
+  subscribe to anything, and its own `RouteGuard` still decides as before.
+
 - **`replace` and `pushReplacement` no longer leave a back-navigable entry** (via
   `zenrouter_core` 3.0.0). On the web, signing in through a `replace` used to leave
   `/login` one back-press away. `CoordinatorRouteInformationProvider` now reports

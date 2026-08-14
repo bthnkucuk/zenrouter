@@ -168,6 +168,31 @@ class _NavigationStackState<T extends RouteTarget>
     );
   }
 
+  /// Whether a back press on this page belongs to something below it.
+  ///
+  /// A layout route is a single page to the navigator it sits on, however deep
+  /// the stack it owns. [CoordinatorCore.tryPop] knows to take the innermost
+  /// path first; a navigator asked directly does not — it pops the layout, and
+  /// the section underneath is reset with it. So the page refuses, and hands the
+  /// press back to the coordinator.
+  ///
+  /// Only a layout can have anything below it, which is also what keeps this off
+  /// the hot path: an ordinary page answers on the type test.
+  bool _popBelongsDeeper(T route) {
+    final coordinator = widget.coordinator;
+    if (coordinator == null || route is! RouteLayoutParent) return false;
+
+    final paths = coordinator.activePaths;
+    final index = paths.indexOf(widget.path);
+    if (index < 0) return false;
+    for (var i = index + 1; i < paths.length; i++) {
+      if (paths[i] case StackMutatable(:final stack) when stack.length >= 2) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   Widget _buildPopScope({
     required T route,
     required RouteGuard? guard,
@@ -200,6 +225,10 @@ class _NavigationStackState<T extends RouteTarget>
                 route.isPopByPath == false,
               );
               route.onDidPop(result, widget.coordinator);
+            case false when _popBelongsDeeper(route):
+              // Refused above, so the press is still unspent: the coordinator
+              // takes the innermost path, which is what a back means here.
+              await widget.coordinator?.tryPop();
             case false when route is RouteGuard:
               widget.path.pop();
             case false when destination.guard != null:
@@ -220,24 +249,41 @@ class _NavigationStackState<T extends RouteTarget>
       );
     }
 
-    if (guard == null) return buildScope(true);
-
     final coordinator = widget.coordinator;
-    final canPopListenable = switch (coordinator) {
-      null => guard.canPopListenable,
-      final c => guard.canPopListenableWith(c),
-    };
-    bool resolveCanPop() => switch (coordinator) {
-      null => guard.canPop,
-      final c => guard.canPopWith(c),
-    };
 
-    if (canPopListenable == null) return buildScope(resolveCanPop());
+    Widget resolveScope() {
+      // Ahead of the route's own guard: whatever it would decide, the press is
+      // not about this page while there is a stack below it to spend it on.
+      if (_popBelongsDeeper(route)) return buildScope(false);
+      if (guard == null) return buildScope(true);
 
-    return ListenableBuilder(
-      listenable: canPopListenable.toFlutterListenable(),
-      builder: (context, _) => buildScope(resolveCanPop()),
-    );
+      final canPopListenable = switch (coordinator) {
+        null => guard.canPopListenable,
+        final c => guard.canPopListenableWith(c),
+      };
+      bool resolveCanPop() => switch (coordinator) {
+        null => guard.canPop,
+        final c => guard.canPopWith(c),
+      };
+
+      if (canPopListenable == null) return buildScope(resolveCanPop());
+
+      return ListenableBuilder(
+        listenable: canPopListenable.toFlutterListenable(),
+        builder: (context, _) => buildScope(resolveCanPop()),
+      );
+    }
+
+    // What is below a layout changes with every navigation, and `canPop` is
+    // read once per build — so a layout page is re-asked when the coordinator
+    // says something moved. Ordinary pages are not subscribed at all.
+    if (route is RouteLayoutParent && coordinator != null) {
+      return ListenableBuilder(
+        listenable: coordinator,
+        builder: (context, _) => resolveScope(),
+      );
+    }
+    return resolveScope();
   }
 
   void _updatePages() {

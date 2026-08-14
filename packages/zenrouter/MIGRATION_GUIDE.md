@@ -8,8 +8,8 @@ This guide outlines the changes and steps required to migrate to the latest vers
 
 ## 3.0.0: Equality contract repair
 
-**TL;DR — most projects need no code changes.** Run your test suite; if it is green,
-you are done. The two things that can bite you are listed under
+**TL;DR — most projects need no code changes**, with one exception: web apps should
+check how they wire the `Router`. Run your test suite, then work through
 [Do I need to change anything?](#do-i-need-to-change-anything) below.
 
 ### What was wrong
@@ -73,7 +73,38 @@ class OrderRoute extends RouteTarget with RouteUnique {
 }
 ```
 
-**2. Did you annotate a `pageBuilder` parameter explicitly?**
+**2. Are you on the web? Check how you wire the `Router`.**
+
+`replace` and `pushReplacement` now overwrite the browser history entry instead of
+adding one, so signing in through a `replace` no longer leaves `/login` one back-press
+away. That only takes effect if the `Router` is given the coordinator's
+`routeInformationProvider`:
+
+```dart
+// Before — Flutter builds its own provider, and history handling never runs
+MaterialApp.router(
+  routerDelegate: coordinator.routerDelegate,
+  routeInformationParser: coordinator.routeInformationParser,
+);
+
+// After
+MaterialApp.router(routerConfig: coordinator);
+```
+
+If you need the pieces separately, pass the provider too:
+
+```dart
+MaterialApp.router(
+  routerDelegate: coordinator.routerDelegate,
+  routeInformationParser: coordinator.routeInformationParser,
+  routeInformationProvider: coordinator.routeInformationProvider,
+);
+```
+
+Debug web builds report a `FlutterError` when the provider is missing, so you will not
+have to discover this by pressing back.
+
+**3. Did you annotate a `pageBuilder` parameter explicitly?**
 
 Lambdas are unaffected — the type is inferred:
 
@@ -106,6 +137,11 @@ forward the key unchanged and need no action.
   and clears its stack-path binding, instead of leaving it bound.
 - **Duplicate routes in one stack are now legal.** `[/edit, /settings, /edit]` renders
   two independent pages, as it always should have.
+- **Replacements stop piling up browser history.** On the web, `replace` and
+  `pushReplacement` used to add an entry each, so the back button walked into screens
+  the app had discarded. `pushReplacement` added two — being a pop followed by a push,
+  it reported a transient state the user never saw. Both now overwrite the current
+  entry. Requires the wiring described above; no effect off the web.
 - **A pending `await push(...)` no longer hangs when its path is disposed.** Nothing
   used to complete the result of routes still on a stack being torn down, so the code
   after the `await` never ran and the awaiting frame kept its state alive. Those awaiters

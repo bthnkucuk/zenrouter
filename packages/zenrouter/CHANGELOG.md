@@ -58,6 +58,24 @@ fixing them is what this release is about.
 
 ### Fixed
 
+- **`replace` and `pushReplacement` no longer leave a back-navigable entry** (via
+  `zenrouter_core` 3.0.0). On the web, signing in through a `replace` used to leave
+  `/login` one back-press away. `CoordinatorRouteInformationProvider` now reports
+  replacements as `neglect`.
+
+  **This only works if the `Router` is given the coordinator's
+  `routeInformationProvider`.** Handing `MaterialApp.router` a delegate and a parser
+  alone makes Flutter build its own provider, and none of this runs. Pass the
+  coordinator whole instead:
+
+  ```dart
+  MaterialApp.router(routerConfig: coordinator)
+  ```
+
+  In debug web builds the delegate now reports a `FlutterError` when it detects the
+  wiring, rather than leaving the symptom to be found by pressing back. Every example
+  in the repo has been switched over.
+
 - **Disposing a path releases whatever is awaiting it.** `NavigationPath` and
   `IndexedStackPath` had no `dispose` of their own, so nothing completed the result of
   routes still on the stack. Every pending `await coordinator.push(...)` was left hanging

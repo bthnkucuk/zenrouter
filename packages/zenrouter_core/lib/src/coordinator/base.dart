@@ -61,6 +61,21 @@ abstract class CoordinatorCore<T extends RouteUri> extends Equatable
       ? coordinator
       : this;
 
+  bool _replacesHistoryEntry = false;
+
+  /// Whether the most recent commit should overwrite the current browser
+  /// history entry instead of adding one.
+  ///
+  /// Set by every mutation as it commits — replacements write `true`, ordinary
+  /// navigation writes `false` — and read when the router reports the new URI.
+  /// Reading it at report time is what makes this work: the report happens in a
+  /// post-frame callback, long after the mutation, so a synchronous
+  /// `Router.neglect` around the call cannot capture the intent.
+  ///
+  /// Framework-managed. Assign only from a path committing a mutation.
+  bool get replacesHistoryEntry => _replacesHistoryEntry;
+  set replacesHistoryEntry(bool value) => _replacesHistoryEntry = value;
+
   @override
   void dispose() {
     for (final path in paths) {
@@ -230,6 +245,13 @@ abstract class CoordinatorCore<T extends RouteUri> extends Equatable
         case _ResolveLayoutStrategy.pushToTop
             when grandParentLayout is StackMutatable:
           grandParentLayout.pushOrMoveToTop(parentLayout);
+        // Only [replace] overrides, and it lands on a single history entry.
+        // These activations are not awaited, so if they committed as ordinary
+        // navigation they would overwrite the replacement intent after the
+        // fact — the layouts a replace passes through must be marked too.
+        case _ResolveLayoutStrategy.override
+            when grandParentLayout is StackMutatable:
+          grandParentLayout.activateReplacing(parentLayout);
         default:
           grandParentLayout.activateRoute(parentLayout);
       }
@@ -269,6 +291,8 @@ abstract class CoordinatorCore<T extends RouteUri> extends Equatable
     final target = await RouteRedirect.resolve(route, this);
     if (target == null) return;
 
+    replacesHistoryEntry = false;
+
     final parentLayout = target.resolveParentLayout(this);
     if (parentLayout != null) {
       await _prepareParentLayoutList(
@@ -298,6 +322,11 @@ abstract class CoordinatorCore<T extends RouteUri> extends Equatable
     T? target = await RouteRedirect.resolve(route, this);
     if (target == null) return;
 
+    // Declare the intent up front. Not every commit a replace performs marks
+    // the flag — an IndexedStackPath tab switch notifies without one — so
+    // relying on the last commit to set it would leave it unset.
+    replacesHistoryEntry = true;
+
     for (final path in paths) path.reset();
 
     final parentLayout = target.resolveParentLayout(this);
@@ -309,7 +338,14 @@ abstract class CoordinatorCore<T extends RouteUri> extends Equatable
     }
 
     final parentPath = parentLayout?.resolvePath(this) ?? root;
-    await parentPath.activateRoute(target);
+    // A replace lands on the same conceptual history slot: the stack it
+    // replaces is gone, so leaving it reachable through the browser's back
+    // button would resurrect a screen the app no longer holds.
+    if (parentPath case StackMutatable path) {
+      await path.activateReplacing(target);
+    } else {
+      await parentPath.activateRoute(target);
+    }
   }
 
   /// Adds a route to the navigation stack.
@@ -319,6 +355,12 @@ abstract class CoordinatorCore<T extends RouteUri> extends Equatable
   Future<R?> push<R extends Object>(T route) async {
     T? target = await RouteRedirect.resolve(route, this);
     if (target == null) return null;
+
+    // Forward navigation earns its own history entry. Stated here because a
+    // push can commit without any path marking the flag — the layout is
+    // already on top and the tab switch does not mark — which would otherwise
+    // let a previous replace's intent carry over.
+    replacesHistoryEntry = false;
 
     final parentLayout = target.resolveParentLayout(this);
     if (parentLayout != null) {
@@ -344,6 +386,8 @@ abstract class CoordinatorCore<T extends RouteUri> extends Equatable
   void pushOrMoveToTop(T route) async {
     final target = await RouteRedirect.resolve(route, this);
     if (target == null) return;
+
+    replacesHistoryEntry = false;
 
     final parentLayout = target.resolveParentLayout(this);
     if (parentLayout != null) {

@@ -10,7 +10,8 @@ description: >
   routeKey, ObjectKey routeKey, duplicate GlobalKey page, duplicated page keys,
   GuardRule canPop, canPopRule, guardRule, layoutBuilder, CoordinatorLayoutBuilder,
   RouteLayoutBuilder, parseRouteFromUri return type, createWith, bindLayout,
-  defineLayoutBuilder.
+  defineLayoutBuilder, routerConfig, routeInformationProvider, browser history,
+  back button, replace history entry.
 ---
 
 # ZenRouter Migration Skill
@@ -59,8 +60,9 @@ dev_dependencies:
 ## 3.0.0 — Equality contract repair
 
 **Expected blast radius: zero for most projects.** This release fixes a broken
-`==` / `hashCode` contract. Bump the versions, run the analyzer, run the tests. Only two
-things can actually break — check both, then stop.
+`==` / `hashCode` contract. Bump the versions, run the analyzer, run the tests. Three
+things can actually need work — check them, then stop. The third applies to web targets
+only, and the analyzer will not catch it.
 
 ### What changed
 
@@ -122,6 +124,35 @@ Page<void> buildPage(BuildContext c, ObjectKey routeKey, Widget child) => ...
 
 Built-in transitions (`.material`, `.cupertino`, `.sheet`, `.dialog`, `.none`) forward
 the key unchanged — no action.
+
+### Check 3 — how the `Router` is wired (web targets)
+
+`replace` and `pushReplacement` only overwrite the browser history entry if the `Router`
+is given the coordinator's `routeInformationProvider`. Passing a delegate and a parser
+alone makes Flutter build its own, and the history handling never runs — silently,
+because nothing about it is visible off the web.
+
+```bash
+rg -n "MaterialApp.router|CupertinoApp.router|WidgetsApp.router" -A 5 lib/
+```
+
+If the call passes `routerDelegate` and `routeInformationParser` without
+`routeInformationProvider`, collapse it:
+
+```dart
+// Before
+MaterialApp.router(
+  routerDelegate: coordinator.routerDelegate,
+  routeInformationParser: coordinator.routeInformationParser,
+);
+// After
+MaterialApp.router(routerConfig: coordinator);
+```
+
+Keep the long form only if something else needs the pieces separately; then add
+`routeInformationProvider: coordinator.routeInformationProvider`.
+
+Debug web builds report a `FlutterError` for this, so a running app will say so too.
 
 ### Cleanup opportunity — delete Set/Map workarounds
 

@@ -61,8 +61,7 @@ class ZenRouterDocsApp extends StatelessWidget {
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: ThemeMode.system,
-      routerDelegate: docsCoordinator.routerDelegate,
-      routeInformationParser: docsCoordinator.routeInformationParser,
+      routerConfig: docsCoordinator,
     );
   }
 }

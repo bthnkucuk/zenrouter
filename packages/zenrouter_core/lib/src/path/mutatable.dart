@@ -46,6 +46,15 @@ mixin StackMutatable<T extends RouteTarget> on StackPath<T>
     return next;
   }
 
+  /// Records, on the coordinator, whether the commit about to be notified
+  /// should overwrite the current browser history entry or add one.
+  ///
+  /// Every notifying mutation calls this, so the value read at report time —
+  /// a post-frame callback — always describes the commit that triggered it.
+  void _markHistory({required bool replaces}) {
+    coordinator?.replacesHistoryEntry = replaces;
+  }
+
   /// Adds a new route to the top of the stack.
   ///
   /// Resolves redirects via [RouteRedirect.resolve] before pushing.
@@ -60,7 +69,7 @@ mixin StackMutatable<T extends RouteTarget> on StackPath<T>
   }
 
   /// The mutating half of [push]. Must only run from inside [_enqueue].
-  Future<T?> _pushLocked(T element) async {
+  Future<T?> _pushLocked(T element, {bool replacesHistory = false}) async {
     T? target = await RouteRedirect.resolve(element, coordinator);
     if (target == null) return null;
 
@@ -76,6 +85,7 @@ mixin StackMutatable<T extends RouteTarget> on StackPath<T>
     target.isPopByPath = false;
     target.bindStackPath(this);
     _stack.add(target);
+    _markHistory(replaces: replacesHistory);
     notifyListeners();
     return target;
   }
@@ -101,17 +111,38 @@ mixin StackMutatable<T extends RouteTarget> on StackPath<T>
         activeRoute.completeOnResult(result, coordinator);
         activeRoute.onDiscard();
         reset();
-        return push(target);
+        return _pushReplacing(target);
       }
 
-      final popped = await pop(result);
+      final popped = await _pop(result, replacesHistory: true);
       if (popped == null || !popped) return null;
       // ignore: invalid_use_of_visible_for_testing_member
       await activeRoute.onResult.future;
-      return push(target);
+      return _pushReplacing(target);
     }
 
-    return push(target);
+    return _pushReplacing(target);
+  }
+
+  /// Pushes [target] as a replacement: the commit overwrites the current
+  /// browser history entry rather than adding one.
+  ///
+  /// The queue holds only the mutation, never the result await — that settles
+  /// on pop and would pin the queue for the route's whole life on screen.
+  Future<R?> _pushReplacing<R extends Object>(T target) async {
+    final pushed = await _enqueue(
+      () => _pushLocked(target, replacesHistory: true),
+    );
+    if (pushed == null) return null;
+    // ignore: invalid_use_of_visible_for_testing_member
+    return await pushed.onResult.future as R?;
+  }
+
+  /// Activates [route] as the only entry, overwriting the current history
+  /// entry instead of adding one. Used by `CoordinatorCore.replace`.
+  Future<void> activateReplacing(T route) async {
+    reset();
+    await _enqueue(() => _pushLocked(route, replacesHistory: true));
   }
 
   /// Adds a route to the top, or moves it to the top if already in stack.
@@ -147,6 +178,7 @@ mixin StackMutatable<T extends RouteTarget> on StackPath<T>
       }
     }
     _stack.add(target);
+    _markHistory(replaces: false);
     notifyListeners();
   }
 
@@ -159,19 +191,28 @@ mixin StackMutatable<T extends RouteTarget> on StackPath<T>
   /// - `true`: Pop completed successfully
   /// - `false`: Guard blocked the pop
   /// - `null`: Stack was empty
-  Future<bool?> pop([Object? result]) {
+  Future<bool?> pop([Object? result]) => _pop(result);
+
+  Future<bool?> _pop(Object? result, {bool replacesHistory = false}) {
     final last = _stack.isEmpty ? null : _stack.last;
     if (_pending == null && last is! RouteGuard) {
       // No guard to consult means no await gap, so there is nothing another
       // mutation could interleave into and nothing to serialize. Apply now, so
       // a burst of fire-and-forget pops still lands synchronously.
-      return Future<bool?>.value(_popApply(result));
+      return Future<bool?>.value(
+        _popApply(result, replacesHistory: replacesHistory),
+      );
     }
-    return _enqueue(() => _popLocked(result));
+    return _enqueue(
+      () => _popLocked(result, replacesHistory: replacesHistory),
+    );
   }
 
   /// The mutating body of [pop]. Must only run from inside [_enqueue].
-  Future<bool?> _popLocked([Object? result]) async {
+  Future<bool?> _popLocked(
+    Object? result, {
+    bool replacesHistory = false,
+  }) async {
     if (_stack.isEmpty) return null;
 
     final last = _stack.last;
@@ -189,15 +230,16 @@ mixin StackMutatable<T extends RouteTarget> on StackPath<T>
       if (_stack.isEmpty || !identical(_stack.last, last)) return null;
     }
 
-    return _popApply(result);
+    return _popApply(result, replacesHistory: replacesHistory);
   }
 
   /// Removes the top route unconditionally. Guards are the caller's business.
-  bool? _popApply(Object? result) {
+  bool? _popApply(Object? result, {bool replacesHistory = false}) {
     if (_stack.isEmpty) return null;
     final element = _stack.removeLast();
     element.isPopByPath = true;
     element.bindResultValue(result);
+    _markHistory(replaces: replacesHistory);
     notifyListeners();
     return true;
   }
@@ -228,6 +270,7 @@ mixin StackMutatable<T extends RouteTarget> on StackPath<T>
       route.clearStackPath();
     }
 
+    _markHistory(replaces: false);
     notifyListeners();
   }
 
@@ -240,6 +283,7 @@ mixin StackMutatable<T extends RouteTarget> on StackPath<T>
     if (removed) {
       if (discard) element.onDiscard();
       element.clearStackPath();
+      _markHistory(replaces: false);
       notifyListeners();
     }
   }
@@ -261,6 +305,7 @@ mixin StackMutatable<T extends RouteTarget> on StackPath<T>
     _stack.removeAt(index);
     if (discard) element.onDiscard();
     element.clearStackPath();
+    _markHistory(replaces: false);
     notifyListeners();
   }
 
@@ -279,7 +324,7 @@ mixin StackMutatable<T extends RouteTarget> on StackPath<T>
     final routeIndex = stack.indexOf(target);
     if (routeIndex != -1) {
       while (stack.length > routeIndex + 1) {
-        final allowPop = await _popLocked();
+        final allowPop = await _popLocked(null);
         if (allowPop == null || !allowPop) {
           notifyListeners();
           return;

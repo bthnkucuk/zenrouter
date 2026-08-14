@@ -114,12 +114,38 @@
 
   This affects the declarative paradigm only; `applyDiff` has no other caller.
 
+- **A replacement no longer adds a browser history entry.** `replace` and
+  `pushReplacement` discard the stack they replace, but every URI change was
+  reported to the browser as a new entry, so the back button walked straight back
+  into screens the app had thrown away — the login page you just signed in from,
+  each step of an onboarding flow. `pushReplacement` was worse than it looks: being
+  a pop followed by a push, it reported twice, leaving a transient state in the
+  history the user never saw.
+
+  Each commit now records whether it replaces or advances, and the coordinator's
+  route information provider turns that into `RouteInformationReportingType.neglect`
+  at report time. Reading the intent at report time is the whole trick — the report
+  runs in a post-frame callback, so a synchronous `Router.neglect` around the
+  navigation call would have returned long before.
+
+  Affects the web only; elsewhere the platform back button unwinds the `Navigator`
+  and no history stack is involved.
+
 ### Added — API
 
 - **`StackMutatable.removeIdentical`** removes a specific live entry, matching on
   identity instead of `==`. Use it over `remove` whenever the caller knows which
   instance left and the stack may hold equal routes. It is a no-op if the route is
   already gone, so it is safe to call twice.
+
+- **`CoordinatorCore.replacesHistoryEntry`** reports whether the most recent commit
+  should overwrite the current browser history entry. Framework-managed; assign only
+  from a path committing a mutation.
+
+- **`StackMutatable.activateReplacing`** activates a route as the only entry and
+  marks the commit as a replacement. Used by `replace`, including for the layouts it
+  activates on the way — those commits are not awaited, so leaving them unmarked let
+  them overwrite the intent after the fact.
 
 - **`StackMutatable.applyStack`** replaces the whole stack in one commit, carrying over
   the entries that appear in the target and discarding the rest. It is the primitive for

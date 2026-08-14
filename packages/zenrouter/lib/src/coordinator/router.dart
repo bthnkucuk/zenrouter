@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/widgets.dart';
 import 'package:zenrouter/zenrouter.dart';
 
@@ -68,11 +69,66 @@ class CoordinatorRouterDelegate extends RouterDelegate<Uri>
 
   @override
   Widget build(BuildContext context) {
+    assert(_debugCheckRouteInformationProvider(context));
     return CoordinatorRestorable(
       coordinator: coordinator,
       restorationId: coordinatorRestorationId,
       child: coordinator.layoutBuilder(context),
     );
+  }
+
+  /// Warns when the [Router] was handed a delegate and a parser but not the
+  /// coordinator's [Coordinator.routeInformationProvider].
+  ///
+  /// Flutter then builds its own provider, and the coordinator's — which is
+  /// what lets `replace` and `pushReplacement` overwrite the browser history
+  /// entry instead of adding one — is never consulted. The symptom is
+  /// web-only and silent: the back button walks into screens the app has
+  /// already discarded, such as the login page you just signed in from.
+  bool _debugWarnedAboutProvider = false;
+
+  bool _debugCheckRouteInformationProvider(BuildContext context) {
+    // Only the web has a history stack to get wrong; elsewhere the platform
+    // back button unwinds the Navigator and the provider is irrelevant.
+    if (!kIsWeb) return true;
+    if (_debugWarnedAboutProvider) return true;
+
+    // Ask the provider rather than the Router: `MaterialApp.router` builds a
+    // `Router<Object>`, so looking it up by our configuration type fails. A
+    // Router subscribes to its provider in `initState`, before this build, so
+    // an unsubscribed provider means ours was never handed over.
+    final provider = coordinator.routeInformationProvider;
+    if (provider is! CoordinatorRouteInformationProvider) return true;
+    if (provider.isAttached) return true;
+
+    _debugWarnedAboutProvider = true;
+    FlutterError.reportError(
+      FlutterErrorDetails(
+        exception: FlutterError.fromParts([
+          ErrorSummary(
+            'The Router is not using the coordinator\'s '
+            'routeInformationProvider.',
+          ),
+          ErrorDescription(
+            'Browser history then treats every navigation as a new entry, so '
+            '`replace` and `pushReplacement` leave discarded screens reachable '
+            'through the back button.',
+          ),
+          ErrorHint(
+            'Pass the coordinator as a whole:\n'
+            '  MaterialApp.router(routerConfig: coordinator)\n'
+            'or supply the provider alongside the delegate:\n'
+            '  MaterialApp.router(\n'
+            '    routerDelegate: coordinator.routerDelegate,\n'
+            '    routeInformationParser: coordinator.routeInformationParser,\n'
+            '    routeInformationProvider: coordinator.routeInformationProvider,\n'
+            '  )',
+          ),
+        ]),
+        library: 'zenrouter',
+      ),
+    );
+    return true;
   }
 
   /// Handles browser navigation events (back/forward buttons, URL changes).

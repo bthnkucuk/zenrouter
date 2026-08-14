@@ -27,6 +27,42 @@ class CoordinatorRouteInformationProvider
 
   Coordinator get coordinator => _coordinator;
 
+  bool _isAttached = false;
+
+  /// Whether a [Router] has subscribed to this provider.
+  ///
+  /// `false` means the app handed the [Router] a delegate and a parser but not
+  /// this provider, so Flutter built its own and the history handling below
+  /// never runs.
+  bool get isAttached => _isAttached;
+
+  @override
+  void addListener(VoidCallback listener) {
+    _isAttached = true;
+    super.addListener(listener);
+  }
+
+  /// Lets a replacement overwrite the browser history entry instead of adding
+  /// one, so `replace` and `pushReplacement` do not leave a screen the app has
+  /// already discarded reachable through the back button.
+  ///
+  /// The intent is read here rather than passed in because the mutation is
+  /// async: by the time the router reports the new URI — in a post-frame
+  /// callback — a synchronous `Router.neglect` around the navigation call has
+  /// long since returned.
+  @override
+  void routerReportsNewRouteInformation(
+    RouteInformation routeInformation, {
+    RouteInformationReportingType type = RouteInformationReportingType.none,
+  }) {
+    super.routerReportsNewRouteInformation(
+      routeInformation,
+      type: _coordinator.replacesHistoryEntry
+          ? RouteInformationReportingType.neglect
+          : type,
+    );
+  }
+
   @visibleForTesting
   static Uri resolveInitialUri(String? platformRouteName, Uri? initialUri) {
     final defaultUri = Uri.tryParse(platformRouteName ?? '');

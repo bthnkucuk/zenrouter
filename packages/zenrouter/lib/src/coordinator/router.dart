@@ -175,9 +175,20 @@ class CoordinatorRouterDelegate extends RouterDelegate<Uri>
       'If you want to use coordinator as [RouterConfig], you must return route from [parseRouteFromUri]',
     );
 
-    if (route case RouteDeepLink()) {
-      // Not awaited: recover → push/navigate futures complete on pop.
-      coordinator.recover(route!);
+    if (route case RouteDeepLink(:final deeplinkStrategy)) {
+      final recovery = coordinator.recover(route!);
+
+      // The router reports `currentConfiguration` the moment this returns, so
+      // returning early — while the app is still on the previous URI — writes a
+      // history entry for a screen the user never saw. The browser then has two
+      // entries to walk back through for every one the user made.
+      //
+      // Only [DeeplinkStrategy.stack] can be waited for: it settles once the
+      // stack has been established. The others settle when the route is later
+      // *popped* — `navigate`/`push`/`replace` are fired unawaited inside
+      // [CoordinatorCore.recover] for exactly that reason, and a custom handler
+      // is app-defined and free to await one of them.
+      if (deeplinkStrategy == DeeplinkStrategy.stack) await recovery;
       return;
     }
 

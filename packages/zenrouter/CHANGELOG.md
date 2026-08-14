@@ -170,8 +170,16 @@ fixing them is what this release is about.
   The URI pattern stays in `parseRouteFromUri` alone — the route knows its own context,
   so nothing is repeated. Routes that do not opt in behave exactly as before.
 
-  A browser **back** button press is still a URL-to-URL navigation and does not consult
-  pop guards; only leaving through the app (`pop`, `tryPop`, system back) does.
+  A browser **back** press is still a URL-to-URL navigation and does not consult pop
+  guards; only leaving through the app (`pop`, `tryPop`, system back) does. Coming
+  back out of a screen the link established *is* an ordinary pop, so its guard runs.
+
+- **A deep link no longer writes a second browser history entry.** `setNewRoutePath`
+  returned before a `DeeplinkStrategy.stack` arrival had been applied, so the `Router`
+  reported the URI the app had *not* moved to yet and the browser recorded an entry for
+  a screen the user never saw. Walking back then took two presses per step. It is now
+  awaited — only for that strategy, which settles once the stack is established; the
+  others settle when the route is later popped and awaiting them would hang.
 
 ### Migration
 

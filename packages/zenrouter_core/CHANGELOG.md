@@ -225,8 +225,12 @@
 
 - **`CoordinatorCore.recoverStack`** establishes a list of routes as the navigation
   state, bottom entry first. Driven by `DeeplinkStrategy.stack`; callable directly for
-  app-defined restoration. The discard it starts with does not consult pop guards —
-  the same as any other deep-link arrival.
+  app-defined restoration.
+
+  What was there is discarded first, without consulting pop guards — the same as any
+  other deep-link arrival. The URI is an instruction about where the app is, not a
+  request to leave the current screen; leaving through the app (`pop`, `tryPop`, system
+  back) still goes through the guard as always.
 
 - **`RouteTarget.redirectResolved` / `markRedirectResolved`** record that
   `RouteRedirect.resolve` has settled a route's redirect chain, so the layers of one

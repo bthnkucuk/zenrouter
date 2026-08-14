@@ -87,6 +87,18 @@ fixing them is what this release is about.
 
 ### Fixed
 
+- **The same route twice on one stack no longer crashes on the frame that saves it.**
+  A stack may hold a route it already holds — `[/edit, /settings, /edit]` is ordinary,
+  and page keys have been identity-based since 3.0.0 for exactly that reason. Restoration
+  ids were not: both entries asked their navigator for one bucket, and the app died with
+  *Multiple owners claimed child RestorationBuckets with the same IDs* on the next
+  serialisation. Reproduced on the module example by opening the V2 shop's product list
+  and then its Home rail item, which pushes a second `/v2/shop`.
+
+  A repeat now carries an occurrence suffix — `root_inner_/home`, then
+  `root_inner_/home#1`. Only the repeat is renamed, so an id that was never ambiguous is
+  the string it always was and state saved under it still comes back.
+
 - **A back press that reaches an outer navigator no longer discards a nested section.**
   A layout is one page to the navigator it sits on, however deep the stack it owns. So a
   back that reached that navigator — an Android system gesture, a `Navigator.maybePop`

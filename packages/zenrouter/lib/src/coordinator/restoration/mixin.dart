@@ -112,12 +112,46 @@ mixin CoordinatorRestoration<T extends RouteUnique> on CoordinatorCore<T> {
       }
     }
 
-    final routeRestorationId = switch (route) {
-      RouteRestorable() => (route as RouteRestorable).restorationId,
-      _ => route.identifier.toString(),
-    };
+    final routeRestorationId = _routeIdPart(route);
 
-    return '${rootRestorationId}_${labels.join('_')}_$routeRestorationId';
+    return '${rootRestorationId}_${labels.join('_')}_'
+        '${_disambiguate(route, routeRestorationId)}';
+  }
+
+  static String? _routeIdPart(RouteTarget route) => switch (route) {
+    RouteRestorable() => route.restorationId,
+    RouteUri() => route.identifier.toString(),
+    _ => null,
+  };
+
+  /// [id] made distinct from the entries below [route] on its own path.
+  ///
+  /// A stack may hold the same route twice — `[/edit, /settings, /edit]` is an
+  /// ordinary stack, and page keys have been identity-based since 3.0.0 for
+  /// exactly that reason. Their ids are not: both entries asked their navigator
+  /// for one restoration bucket, which is an error, and the app died on the
+  /// frame that serialised.
+  ///
+  /// Only a repeat is renamed, so an id that was never ambiguous is the string
+  /// it always was — state saved under it still comes back. Entries on the same
+  /// path share the layout prefix, so comparing the route part settles it.
+  String _disambiguate(T route, String? id) {
+    final stack = route.stackPath?.stack;
+    if (stack == null || id == null) return '$id';
+
+    var seen = 0;
+    var found = false;
+    for (final other in stack) {
+      if (identical(other, route)) {
+        found = true;
+        break;
+      }
+      if (_routeIdPart(other) == id) seen++;
+    }
+    // Not on the path it names: an id asked for on a route's behalf before it
+    // is pushed, where there is no position to count from.
+    if (!found || seen == 0) return id;
+    return '$id#$seen';
   }
 
   void defineRestorableConverter(

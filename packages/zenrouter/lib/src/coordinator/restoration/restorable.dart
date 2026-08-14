@@ -280,7 +280,10 @@ class _CoordinatorRestorable<T extends RouteUnique>
           path.debugLabel != null,
           'NavigationPath must have a debugLabel for restoration to work',
         );
-        map[path.debugLabel!] = path.stack.cast<T>();
+        // Copied: `stack` is a live view and `cast` only wraps it, so storing
+        // it here would leave the restorable holding the path itself rather
+        // than what it looked like.
+        map[path.debugLabel!] = List<T>.of(path.stack.cast<T>());
         continue;
       }
       if (path is IndexedStackPath) {

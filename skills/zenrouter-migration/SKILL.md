@@ -149,6 +149,15 @@ rg -n "Future.delayed.*(push|pop|navigate)|await Future.delayed" lib/
 If a delay exists only to make two navigation calls land in the right order, it can go.
 Leave delays that serve animation or UX purposes.
 
+A pending `await coordinator.push(...)` now also resolves — with `null` — when its path
+is disposed, where it used to hang forever. Code after such an `await` runs in one more
+case than before, so check that it tolerates a `null` result; that is the same value an
+unvalued pop already produced.
+
+```bash
+rg -n "await\s+\w*\.?push\s*[<(]" lib/
+```
+
 In a declarative stack, returning a value from a screen that outlived a `routes` update
 used to throw `Bad state: Future already completed`. Projects that routed around it —
 returning results through app state instead of `Navigator.pop(context, value)` — can go

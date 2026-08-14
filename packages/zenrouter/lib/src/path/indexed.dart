@@ -139,6 +139,19 @@ class IndexedStackPath<T extends RouteTarget> extends StackPath<T>
     notifyListeners();
   }
 
+  /// Releases this path and everything still waiting on it.
+  ///
+  /// See [NavigationPath.dispose] for the reasoning, including why this lives
+  /// on the concrete path rather than on [StackPath].
+  @override
+  void dispose() {
+    for (final route in stack) {
+      route.completeOnResult(null, null, true);
+      route.clearStackPath();
+    }
+    super.dispose();
+  }
+
   @override
   void restore(int data) {
     assert(data >= 0 && data < stack.length, 'Index out of bounds');

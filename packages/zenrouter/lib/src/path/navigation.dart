@@ -60,6 +60,30 @@ class NavigationPath<T extends RouteTarget> extends StackPath<T>
   @override
   void reset() => clear();
 
+  /// Releases this path and everything still waiting on it.
+  ///
+  /// Routes left on the stack get their pending result completed with `null`
+  /// and their binding cleared. Anything awaiting `push` when the path goes
+  /// away — a caller waiting on a picker's result — would otherwise never
+  /// resume, keeping its captured state alive for good.
+  ///
+  /// The stack list is left as it is: the path is being discarded whole. No
+  /// notification is emitted either, since listeners are being torn down
+  /// rather than updated.
+  ///
+  /// This lives on the concrete path rather than [StackPath] for two reasons:
+  /// [ChangeNotifier] is mixed in to satisfy `notifyListeners`, and its
+  /// `dispose` shadows any override the base class declares; and adding a
+  /// member to [StackPath] would break every `implements StackPath`.
+  @override
+  void dispose() {
+    for (final route in stack) {
+      route.completeOnResult(null, null, true);
+      route.clearStackPath();
+    }
+    super.dispose();
+  }
+
   @override
   T? get activeRoute => stack.lastOrNull;
 

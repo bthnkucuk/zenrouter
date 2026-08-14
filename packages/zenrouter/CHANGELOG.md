@@ -58,6 +58,19 @@ fixing them is what this release is about.
 
 ### Fixed
 
+- **Disposing a path releases whatever is awaiting it.** `NavigationPath` and
+  `IndexedStackPath` had no `dispose` of their own, so nothing completed the result of
+  routes still on the stack. Every pending `await coordinator.push(...)` was left hanging
+  for good — the code after the `await` never ran, and the awaiting frame kept its
+  captured state alive. In tests it showed up as a hang.
+
+  Both paths now complete each remaining route's result with `null` and clear its
+  binding. The stack list itself is untouched: the path is being discarded whole, and no
+  notification is emitted since listeners are being torn down rather than updated.
+
+  Reachable wherever a coordinator outlives a pending result — a screen with a nested
+  coordinator unmounting while a child awaits, a logout flow, test teardown.
+
 - **`NavigationStack.declarative` applies stack changes atomically** (via
   `zenrouter_core` 3.0.0). Updating the `routes` list used to rebuild the path route by
   route, which completed the result of every route that survived the update. Showing a

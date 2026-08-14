@@ -106,6 +106,12 @@ forward the key unchanged and need no action.
   and clears its stack-path binding, instead of leaving it bound.
 - **Duplicate routes in one stack are now legal.** `[/edit, /settings, /edit]` renders
   two independent pages, as it always should have.
+- **A pending `await push(...)` no longer hangs when its path is disposed.** Nothing
+  used to complete the result of routes still on a stack being torn down, so the code
+  after the `await` never ran and the awaiting frame kept its state alive. Those awaiters
+  now resolve with `null`. Check any `await coordinator.push(...)` that assumed it would
+  only resume on a real pop — it can now also resume because the path went away, with
+  `null`, which is the same value an unvalued pop gives you.
 - **Declarative updates are a single commit.** If you use
   `NavigationStack.declarative`, changing the `routes` list used to rebuild the path one
   route at a time, completing the result of every route that survived the change. A

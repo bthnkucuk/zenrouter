@@ -78,6 +78,12 @@
 
 ### Fixed
 
+- **Disposing a modular coordinator releases its modules' paths.** `paths` is composed
+  from the module map, and `dispose` cleared that map before the base class walked
+  `paths` — so a plain `RouteModule`'s path was never disposed: its listener stayed
+  attached and anything awaiting a `push` on it never settled. Sub-coordinators were
+  unaffected; they dispose their own paths.
+
 - **Clearing a path discards the routes it removes.** `onDiscard` is where an app releases
   what a route owns — a subscription, a controller, a listener registered on its behalf —
   and `StackPath.clear` dropped routes without it, so the thing that registered them kept

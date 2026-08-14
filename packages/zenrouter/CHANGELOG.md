@@ -217,6 +217,13 @@ fixing them is what this release is about.
   The widget now derives what it needs from the coordinator. Delete the argument if you
   passed one.
 
+- **A navigator handed a different path lets go of the first.** `didUpdateWidget` moved
+  the listener that rebuilds pages but not the one that saves restoration state, so the
+  old path kept it — and a listener is a bound method, so it held the `State` and
+  everything under it for good. `dispose` then removed the survivor from the *new* path,
+  where it was not. Only reachable by rendering a `NavigationStack` against a path that
+  changes in place, which is what a per-instance layout path does.
+
 ### Added
 
 - **`IndexedStackPath(lazy: true)` builds a tab when it is first opened.** Off by

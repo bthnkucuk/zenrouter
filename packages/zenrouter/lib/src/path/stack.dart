@@ -301,8 +301,13 @@ class _NavigationStackState<T extends RouteTarget>
   void didUpdateWidget(covariant NavigationStack<T> oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.path != widget.path) {
+      // Both listeners move, or the old path keeps one — and a listener is a
+      // bound method, so it holds this State and everything under it. `dispose`
+      // would then remove the survivor from the *new* path, where it is not.
       oldWidget.path.removeListener(_updatePages);
+      oldWidget.path.removeListener(_updateRestorable);
       widget.path.addListener(_updatePages);
+      widget.path.addListener(_updateRestorable);
       // Reset previous routes and rebuild pages for the new path
       _previousRoutes = [];
       _updatePages();

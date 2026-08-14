@@ -84,9 +84,22 @@ mixin CoordinatorModular<T extends RouteUri> on CoordinatorCore<T> {
 
   @override
   void dispose() {
-    for (final module in _modules.values.whereType<CoordinatorCore>()) {
-      module.dispose();
+    for (final module in _modules.values) {
+      // A sub-coordinator releases its own paths.
+      if (module case final CoordinatorCore coordinator) {
+        coordinator.dispose();
+        continue;
+      }
+      // A plain module does not, and `paths` is composed from `_modules` — so
+      // clearing that before `super.dispose()` hid its paths from the loop that
+      // releases them, leaving their listeners attached and anything awaiting a
+      // push on them forever unsettled.
+      for (final path in module.paths) {
+        path.removeListener(notifyListeners);
+        path.dispose();
+      }
     }
+
     _modules.clear();
     _allModules.clear();
     super.dispose();

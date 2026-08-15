@@ -1,4 +1,8 @@
+import 'dart:math' as math;
+
+import 'package:flutter/physics.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shits/src/geometry/anchor.dart';
 import 'package:shits/src/geometry/detent.dart';
 import 'package:shits/src/geometry/detent_set.dart';
 import 'package:shits/src/geometry/units.dart';
@@ -680,6 +684,92 @@ void main() {
         model.tick(const Duration(milliseconds: 16));
       }
       expect(model.isTicking, isFalse);
+    });
+
+    test('and never writes a negative extent, however far it undershoots', () {
+      // A **floating** panel settling to a zero-height detent, under
+      // `snappy`. Every part of that is the fixture rather than a scenario:
+      //
+      //  * floating, because an edge-attached panel keeps the 34pt home
+      //    indicator under its smallest detent, so the spring undershoots into
+      //    the padding and never reaches zero — measured, 29.13 at its lowest.
+      //  * `snappy` and not the default `smooth`, because `smooth` has no
+      //    bounce and never goes below zero at any release velocity tested. A
+      //    test written with the default would pass against the unsaturated
+      //    write.
+      //  * zero release velocity, because that is the weakest input that still
+      //    reproduces: this needs no fling.
+      final floating = kIPhone17Pro.layout(attachment: EdgeAttachment.floating);
+      const bottom = Detent.height(DetentValue.zero);
+      final model = PanelModel(
+        config: const PanelConfig(
+          detents: DetentSet([bottom, Detent.full]),
+          initialDetent: Detent.full,
+          motion: PanelMotion.snappy(),
+        ),
+        layout: floating,
+      );
+      addTearDown(model.dispose);
+
+      // The same spring the model is about to build, seeded identically, kept
+      // unsaturated. Without this the assertions below would also be satisfied
+      // by a spring that simply never went negative, which is the reading that
+      // makes this test worthless.
+      final from = model.extent;
+      final unsaturated = const PanelMotion.snappy().createSimulation(
+        start: from.px,
+        end: 0,
+        tolerance: const Tolerance(
+          distance: kSettleTolerance,
+          velocity: kSettleTolerance,
+        ),
+      );
+
+      model.animateTo(bottom);
+      const step = Duration(microseconds: 16667);
+      var elapsed = Duration.zero;
+      var frames = 0;
+      var lowestWritten = double.infinity;
+      var lowestSampled = double.infinity;
+      while (model.isTicking && frames < 400) {
+        model.tick(step);
+        elapsed += step;
+        final seconds = elapsed.inMicroseconds / Duration.microsecondsPerSecond;
+        lowestWritten = math.min(lowestWritten, model.extent.px);
+        lowestSampled = math.min(lowestSampled, unsaturated.x(seconds));
+        frames++;
+      }
+
+      expect(
+        frames,
+        greaterThan(20),
+        reason: 'a settle that finished in three frames would prove nothing',
+      );
+      expect(
+        lowestSampled,
+        lessThan(0),
+        reason:
+            'the premise: this spring really does go below zero — about −1.26pt '
+            'here. If it stops doing so the assertion below stops meaning '
+            'anything, and this line is what says so',
+      );
+      expect(
+        lowestWritten,
+        0,
+        reason:
+            'and the extent bottoms out at exactly zero rather than at the '
+            'sample. An Extent is "finite and non-negative by convention" — '
+            'operator - saturates, PanelBaseline.frameOf saturates, '
+            'Detent.resolve asserts — and this write was the one crossing that '
+            'reached none of them. Below zero the panel is not short, it is '
+            'absent, and absence is EdgeOffset\'s quantity',
+      );
+      expect(
+        model.extent.px,
+        0,
+        reason: 'and it still arrives, because the floor is not a stop',
+      );
+      expect(model.activity, isA<IdlePanelActivity>());
     });
   });
 

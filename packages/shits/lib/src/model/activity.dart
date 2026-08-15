@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/physics.dart';
 import 'package:meta/meta.dart';
 
@@ -566,6 +568,25 @@ final class SettlingPanelActivity extends SelfDrivenActivity {
   /// should be *at* its destination, so that the height a later `hold` resolves
   /// to is the height it is already showing and there is no sub-pixel step
   /// between arriving and being told where it arrived.
+  ///
+  /// **The sample is saturated at zero, and this is the only write in the
+  /// package that needs saying so.** A spring with any bounce at all undershoots
+  /// a destination near the bottom of the travel — measured, a floating panel
+  /// settling to a zero-height detent under [PanelMotion.snappy] dips to −1.26pt
+  /// at *zero* release velocity, and under `bouncy` to −4.9 — and an [Extent] is
+  /// "finite and non-negative by convention" everywhere else: `Extent.operator -`
+  /// saturates, `PanelBaseline.frameOf` saturates, `Detent.resolve` asserts. This
+  /// write is the one crossing that reaches [PanelModel.applyExtent] without
+  /// passing through any of them, and a negative extent leaves the model as an
+  /// inverted rect and arrives at `BoxConstraints.tight` — where the *framework*
+  /// refuses, three layers below the spring that did it.
+  ///
+  /// Zero is the floor rather than some smaller number because below zero the
+  /// panel is not short, it is *absent*, and absence is [EdgeOffset]'s quantity
+  /// and not this one. The pixels the spring spends under the floor are not lost:
+  /// the simulation keeps integrating from its own unclamped position, so the
+  /// bounce comes back up on its own schedule and the panel simply rests at zero
+  /// while it is beneath it.
   @override
   void tick(Duration delta) {
     _elapsed += delta;
@@ -575,7 +596,7 @@ final class SettlingPanelActivity extends SelfDrivenActivity {
       owner.arriveAt(to, target: destination);
       return;
     }
-    owner.applyExtent(Extent(_simulation.x(_seconds)));
+    owner.applyExtent(Extent(math.max(0.0, _simulation.x(_seconds))));
   }
 }
 

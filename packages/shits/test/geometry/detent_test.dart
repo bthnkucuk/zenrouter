@@ -52,7 +52,9 @@ void main() {
       expect(
         baseline
             .frameOf(
-              Detent.height(DetentValue(kIPhone17Pro.baseline)).resolve(baseline)!,
+              Detent.height(
+                DetentValue(kIPhone17Pro.baseline),
+              ).resolve(baseline)!,
             )
             .px,
         baseline.frameOf(Detent.full.resolve(baseline)!).px,
@@ -174,8 +176,14 @@ void main() {
       // The value is what the author asked for. It is `frameOf` that decides
       // whether a home indicator sits under it, which is why the two baselines
       // agree here and disagree one line down.
-      expect(Detent.height(const DetentValue(200)).resolve(attached)!.px, 200.0);
-      expect(Detent.height(const DetentValue(200)).resolve(floating)!.px, 200.0);
+      expect(
+        Detent.height(const DetentValue(200)).resolve(attached)!.px,
+        200.0,
+      );
+      expect(
+        Detent.height(const DetentValue(200)).resolve(floating)!.px,
+        200.0,
+      );
     });
 
     test(
@@ -192,7 +200,8 @@ void main() {
       // It refuses by naming a frame, so the value it carries is that frame less
       // the padding the frame still contains — 200pt of sheet with 166pt of it
       // clear of the home indicator.
-      final value = Detent.height(const DetentValue(200),
+      final value = Detent.height(
+        const DetentValue(200),
         edgeAttached: false,
       ).resolve(attached)!;
       expect(value.px, 166.0);
@@ -205,7 +214,8 @@ void main() {
       // ever shows a floating sheet absorbing the home indicator, this is the
       // assertion that changes, and it changes on the baseline rather than here.
       expect(
-        Detent.height(const DetentValue(200),
+        Detent.height(
+          const DetentValue(200),
           edgeAttached: true,
         ).resolve(floating)!.px,
         200.0,
@@ -213,7 +223,8 @@ void main() {
       expect(
         attached
             .frameOf(
-              Detent.height(const DetentValue(200),
+              Detent.height(
+                const DetentValue(200),
                 edgeAttached: true,
               ).resolve(attached)!,
             )
@@ -234,7 +245,8 @@ void main() {
       // The one place a negative value is correct: a 10pt frame against a 34pt
       // home indicator has nothing clear of it. The frame saturates at zero, so
       // nothing inverted reaches a rect.
-      final value = Detent.height(const DetentValue(10),
+      final value = Detent.height(
+        const DetentValue(10),
         edgeAttached: false,
       ).resolve(attached)!;
       expect(value.px, -24.0);
@@ -247,7 +259,10 @@ void main() {
       // fixture table's authority. The model clamps the live extent to the
       // resolved set, so the visible failure is a panel that can grow past the
       // safe area rather than one that silently ignores its own detent.
-      expect(Detent.height(const DetentValue(2000)).resolve(attached)!.px, 2000.0);
+      expect(
+        Detent.height(const DetentValue(2000)).resolve(attached)!.px,
+        2000.0,
+      );
       expect(
         attached
             .frameOf(Detent.height(const DetentValue(2000)).resolve(attached)!)
@@ -282,7 +297,8 @@ void main() {
         throwsAssertionError,
       );
       expect(
-        () => Detent.height(const DetentValue(double.infinity)).resolve(baseline),
+        () =>
+            Detent.height(const DetentValue(double.infinity)).resolve(baseline),
         throwsAssertionError,
       );
       expect(

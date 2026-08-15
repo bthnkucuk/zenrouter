@@ -90,7 +90,10 @@ void main() {
       final resolved = descending.resolve(compact);
       expect(resolved.snaps.length, 2);
       expect(resolved.extentOf(Detent.medium), isNull);
-      expect(resolved.extentOf(Detent.height(const DetentValue(180)))!.px, 214.0);
+      expect(
+        resolved.extentOf(Detent.height(const DetentValue(180)))!.px,
+        214.0,
+      );
       expect(
         resolved.extentOf(Detent.full)!.px,
         compact.safeSpan.px + compact.attachedPadding.px,

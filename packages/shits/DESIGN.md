@@ -1319,3 +1319,70 @@ reinvented:
 Each finding follows the same discipline as everywhere else here: reproduce it with a probe
 first, fix it, then prove the test is load-bearing by disabling the fix and watching it go
 red. A perf test that cannot fail is worse than no perf test, because it certifies.
+
+### A6.3 — The coverage table, enumerated
+
+Counted from the sources on this machine rather than from memory:
+`smooth_sheets-1.0.3/example` (MIT) and `stupid_simple_sheet-1.0.0-dev.2/example` (MIT).
+Every row is an acceptance test. **A port that reaches past the public API, or that quietly
+drops the capability it was demonstrating, counts as a failure, not a pass.**
+
+#### smooth_sheets — tutorials (22)
+
+| # | example | notes |
+|:--|:--|:--|
+| 1 | `basic_sheet` | |
+| 2 | `scrollable_sheet` | the no-opt-in claim, end to end |
+| 3 | `physics_and_snap_grid` | our `SnapPolicy` and `RubberBand` |
+| 4 | `tweak_bouncing_effect` | `bandResistance` is a config field for this reason |
+| 5 | `sheet_controller` | |
+| 6 | `sheet_padding` | |
+| 7 | `bottom_bar_visibility` | the sticky-bar case: a bar pinned to the *viewport* edge, not the content's |
+| 8 | `imperative_modal_sheet` | |
+| 9 | `declarative_modal_sheet` | |
+| 10 | `imperative_modal_custom_barrier_sheet` | `PanelBarrier` |
+| 11 | `cupertino_modal_sheet` | card stacking |
+| 12 | `ios_style_declarative_modal_navigation_sheet` | |
+| 13 | `imperative_paged_sheet` | |
+| 14 | `declarative_paged_sheet` | the MVP's own shape |
+| 15 | `paged_sheet_and_keyboard` | KB1, the gap the research found unclaimed |
+| 16 | `paged_sheet_with_auto_route` | port the *shape* onto zenrouter; `auto_route` is not a dependency we take |
+| 17 | `keyboard_dismiss_behavior` | |
+| 18 | `textfield_with_multiple_stops` | the `TextField` escape, as a real case |
+| 19 | `pull_to_refresh_in_sheet` | refresh at full extent, drag otherwise |
+| 20 | `scrollable_pageview_sheet` | a `PageView` of lists — the nested-scrollable case |
+| 21 | `offset_driven_animation` | needs the panel's position as a listenable, not just its detent |
+| 22 | `decorations` | **out of scope by our own exclusion** — visual chrome. Recorded as excluded, not as failed. |
+
+#### smooth_sheets — showcases (4)
+
+| # | example | size | what it proves |
+|:--|:--|:--|:--|
+| 23 | `ai_playlist_generator` | 739 lines | |
+| 24 | `airbnb_mobile_app` | 506 lines | |
+| 25 | `safari` | 5 files, ~640 lines | the hardest: browser chrome, menus over a sheet |
+| 26 | `todo_list` | 3 files, ~576 lines | an editor sheet with a keyboard |
+
+#### stupid_simple_sheet — recipes and advanced (12)
+
+Read the **current** source, not the 1.0.0-dev.2 in this cache, before porting.
+
+| # | example | notes |
+|:--|:--|:--|
+| 27 | `recipes/basic_sheet` | |
+| 28 | `recipes/content_sized` | `ContentDetent` |
+| 29 | `recipes/content_sized_above_keyboard` | content sizing *and* the keyboard together |
+| 30 | `recipes/snapping_recipe` | |
+| 31 | `recipes/non_draggable` | a panel that only moves programmatically |
+| 32 | `recipes/programmatic_control_recipe` | |
+| 33 | `recipes/slide_vs_shrink_recipe` | our `PanelSizing.translate` vs `.resize`, side by side |
+| 34 | `recipes/sticky_footer_recipe` | the same sticky-bar case as #7, from the other package |
+| 35 | `advanced/custom_route_example` | |
+| 36 | `advanced/dynamic_content_example` | content changing under a live panel — the correction protocol's whole reason |
+| 37 | `advanced/share_sheet_example` | |
+| 38 | `playground/playground_page` | every knob at once; a good smoke test for the config surface |
+| — | `presets/cupertino_sheet_preset`, `presets/glass_sheet_preset` | **out of scope** — chrome |
+
+**36 rows in scope, 3 excluded by our own scope line.** Two of them (#7 and #34) are the
+same capability from two packages, which is worth keeping as two rows: if one ports and the
+other does not, the difference is the finding.

@@ -56,7 +56,37 @@ const _allowances = <String, ({Set<String> packages, Set<String> layers})>{
     },
     layers: {'geometry', 'physics', 'model'},
   ),
+  // The first impure layer, and the allowance is two packages rather than one
+  // because the layer is two halves. The render object needs `rendering.dart`
+  // and nothing wider; the widget that installs it cannot be written without
+  // `widgets.dart`, which is a superset of `rendering.dart` and would cover the
+  // whole directory if the allowance stopped here. `_widgetFreeFiles` below is
+  // what keeps it from doing that.
+  'render': (
+    packages: {
+      'package:meta/meta.dart',
+      'package:flutter/rendering.dart',
+      'package:flutter/widgets.dart',
+    },
+    layers: {'geometry', 'physics', 'model', 'render'},
+  ),
 };
+
+/// Files that may not reach `package:flutter/widgets.dart`, and why each one
+/// would stop being what it is if it did.
+///
+/// An allow-list per layer is too coarse for `render/`: the layer needs
+/// `widgets.dart` for exactly one file, and granting it to the layer grants it
+/// to the render object as well. The whole claim of the render layer is that a
+/// panel resizes without the widget tree hearing about it — a claim about what
+/// the render object *cannot reach*, not about what it happens to call today —
+/// and `BuildContext` in scope is where someone puts a `setState`.
+///
+/// Note that `widgets.dart` exports `rendering.dart`, so a file that took the
+/// wider import would still compile and still pass the layer check above. That
+/// is precisely why this list is separate: the failure is invisible to the
+/// coarser test.
+const _widgetFreeFiles = <String>{'lib/src/render/render_panel.dart'};
 
 /// The URI of an `import`/`export` directive, or null if the line is neither.
 ///
@@ -115,6 +145,33 @@ void main() {
             'a pure layer stopped being pure, or stopped being a layer. '
             '$layer/ may import ${allowance.packages.join(', ')} and the '
             'layers ${allowance.layers.join(', ')}.',
+      );
+    });
+  }
+
+  for (final path in _widgetFreeFiles) {
+    test('$path cannot see a BuildContext', () {
+      final file = File(path);
+      expect(
+        file.existsSync(),
+        isTrue,
+        reason: 'run from the package root, not the workspace root',
+      );
+      final offenders = [
+        for (final line in file.readAsLinesSync())
+          if (_directiveUri(line)
+              case 'package:flutter/widgets.dart' ||
+                  'package:flutter/material.dart' ||
+                  'package:flutter/cupertino.dart')
+            line.trim(),
+      ];
+      expect(
+        offenders,
+        isEmpty,
+        reason:
+            'the render object is the half of this layer that is supposed to be '
+            'unreachable from a build. It gets rendering.dart; the widget next '
+            'to it gets widgets.dart.',
       );
     });
   }

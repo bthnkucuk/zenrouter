@@ -1365,7 +1365,9 @@ drops the capability it was demonstrating, counts as a failure, not a pass.**
 
 #### stupid_simple_sheet — recipes and advanced (12)
 
-Read the **current** source, not the 1.0.0-dev.2 in this cache, before porting.
+Listed from `1.0.0-dev.2`, which is the newest published version — `0.9.1+1` is the latest
+*stable* and ships a single `main.dart`, so the recipe set only exists on the prerelease.
+Check `whynotmake-it/rivership` at HEAD before porting in case it has moved past dev.2.
 
 | # | example | notes |
 |:--|:--|:--|

@@ -1388,3 +1388,35 @@ Check `whynotmake-it/rivership` at HEAD before porting in case it has moved past
 **36 rows in scope, 3 excluded by our own scope line.** Two of them (#7 and #34) are the
 same capability from two packages, which is worth keeping as two rows: if one ports and the
 other does not, the difference is the finding.
+
+### A6.4 — What the sticky-bar rows already tell us about the widget layer
+
+Read from `smooth_sheets-1.0.3/example/lib/tutorial/bottom_bar_visibility.dart` before
+building anything, because it settles a shape rather than leaving it to be guessed.
+
+Its answer is `SheetContentScaffold(bottomBar:, bottomBarVisibility:, extendBodyBehindBottomBar:)`
+with **three** visibility variants, not two:
+
+- `.natural()` — the bar sits at the bottom-most point of the *sheet*, moving with it;
+- `.always()` — the bar sticks to the bottom of the *screen*, whatever the sheet is doing;
+- `.conditional(isVisible: (metrics) => …)` — a predicate over live metrics, re-evaluated
+  *whenever the metrics change*. Its own example is "visible once at least half the sheet
+  is".
+
+Three consequences for us:
+
+1. **A panel needs a content scaffold**, and the bar is a slot on it rather than something
+   the app positions. This is the same conclusion reached from first principles earlier —
+   the bar must be pinned to the *viewport's* edge, not the content's, and only the panel
+   knows where that is — but it also settles the API: the bar lives with the content, in
+   `build`, where it can read the same state the content does.
+2. **Visibility is a policy with three variants, so by A5 it is a named type with all three
+   tested**, and `.conditional` is what makes it a type rather than a boolean.
+3. **`.conditional` requires the panel's position as a live listenable**, not just its
+   resting detent — the predicate runs on every metrics change. Row #21
+   (`offset_driven_animation`) demands the same thing independently. Two rows needing it is
+   enough: the panel publishes its position continuously, and that is a requirement rather
+   than a convenience.
+
+`stupid_simple_sheet`'s `sticky_footer_recipe` is the same capability, which is why both are
+rows: if ours ports one and not the other, the difference is the finding.

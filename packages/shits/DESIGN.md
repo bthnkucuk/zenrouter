@@ -1458,3 +1458,38 @@ So this is an **A5 policy** — subjective, no ground truth — and the honest f
 
 Recorded here rather than decided, because deciding it from an armchair is how the flag got
 invented in the first place.
+
+### A6.6 — The keyboard is ours, not the app's
+
+`smooth_sheets-1.0.3/example/lib/tutorial/textfield_with_multiple_stops.dart` hands it to the
+developer, at the call site:
+
+```dart
+padding: EdgeInsets.only(
+  // Pad the content to avoid the software keyboard.
+  bottom: MediaQuery.viewInsetsOf(context).bottom,
+),
+```
+
+That is the app doing the package's arithmetic, and it is what the research means by rating
+KB1 "partial — manual wiring". An app that forgets it gets a text field under the keyboard;
+nothing warns it.
+
+Requirement 6 says the common case needs no configuration, and a `TextField` in a sheet is
+the common case. So:
+
+- **The detents do not move.** `PanelBaseline` is built from `viewPadding` only and
+  `viewInsets` is unreachable from it — amendment A1, and KB6 proved by construction rather
+  than by a rule anyone has to remember.
+- **`viewInsets` enters somewhere else**: the content's own padding, so the field clears the
+  keyboard, and — per `KeyboardPolicy` — optionally a detent the panel is forced up to while
+  the keyboard is open. Those are two different things and the second is a policy with both
+  ends tested, per A5.
+- **The panel publishes a `MediaQuery` its content can trust.** `smooth_sheets` re-derives
+  all three insets in a `SheetMediaQuery` and the research rates that covered; we need the
+  same, because a content scaffold that pads by the *screen's* `viewInsets` is wrong the
+  moment the panel is not full height.
+
+The acceptance rows are #18 `textfield_with_multiple_stops`, #15 `paged_sheet_and_keyboard`
+and #29 `content_sized_above_keyboard`. A port that reproduces the manual padding has failed
+the row, however well it renders.

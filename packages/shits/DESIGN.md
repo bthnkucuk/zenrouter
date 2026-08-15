@@ -1420,3 +1420,41 @@ Three consequences for us:
 
 `stupid_simple_sheet`'s `sticky_footer_recipe` is the same capability, which is why both are
 rows: if ours ports one and not the other, the difference is the finding.
+
+### A6.5 — Pull to refresh: the row that argues with our own claim
+
+`smooth_sheets-1.0.3/example/lib/tutorial/pull_to_refresh_in_sheet.dart` solves it with a
+flag:
+
+```dart
+scrollConfiguration: const SheetScrollConfiguration(
+  delegateUnhandledOverscrollToChild: true,   // 1. Enable this flag
+),
+child: RefreshIndicator(onRefresh: …, child: ListView.builder(…)),
+```
+
+Without it, a `RefreshIndicator` inside a sheet silently does nothing. That is the same
+shape as `SheetScrollConfiguration.disabled` being the default — a capability behind a
+switch the reader has to know exists — and this document's requirement 6 forbids us the
+equivalent.
+
+**But the conflict underneath is real and is not solved by refusing the flag.** At the
+largest detent, a downward drag from scroll offset 0 has two legitimate readings: iOS says
+it moves toward the next-smaller detent (S6), and every list in every app says it refreshes.
+Both cannot win. `smooth_sheets` hands the choice to the developer and defaults to the
+sheet; the research calls automatic arbitration here an unclaimed gap, which is a way of
+saying nobody has found a rule that is right without being told.
+
+So this is an **A5 policy** — subjective, no ground truth — and the honest form is:
+
+- a named policy with both ends tested, not a boolean flag;
+- and the argument is about the **default**, not about whether the knob exists. Our claim is
+  that the common case needs no configuration, so the default has to be the one that makes
+  an ordinary `RefreshIndicator` work when the panel is fully open, with the sheet keeping
+  the gesture everywhere else.
+- Whether "fully open" means the largest detent or "no larger detent exists in this
+  direction" is the part to settle by trying it, on the device, before 1.0 — the same
+  treatment as S7.
+
+Recorded here rather than decided, because deciding it from an armchair is how the flag got
+invented in the first place.

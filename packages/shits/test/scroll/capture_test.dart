@@ -1,3 +1,20 @@
+/// **This file tests the framework, not this package, and covers no line of it.**
+///
+/// It imports nothing from `package:shits`. Every widget under test here is
+/// built by this file — its own `PrimaryScrollController`, its own spy
+/// controller, its own `ListView` — so no change to `lib/src/scroll/` can make
+/// any row in it fail, and no row in it is evidence that anything in this
+/// package works. What it establishes is the *premise* the package is built on:
+/// that `automaticallyInheritForPlatforms: TargetPlatform.values.toSet()` is
+/// what makes a bare list inherit on a desktop, and that the framework's own
+/// default silently does not.
+///
+/// The coverage of our own wiring — `PanelScrollAttachment` publishing that
+/// controller, on every platform, with a real gesture reaching the panel — is
+/// `attachment_test.dart`. Cite that one for the desktop claim; citing this one
+/// is how the claim went untested while looking covered.
+library;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

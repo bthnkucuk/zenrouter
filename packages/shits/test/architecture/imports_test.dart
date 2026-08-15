@@ -70,6 +70,37 @@ const _allowances = <String, ({Set<String> packages, Set<String> layers})>{
     },
     layers: {'geometry', 'physics', 'model', 'render'},
   ),
+  // **Not `render`.** The scroll layer talks to the `PanelModel`, never to the
+  // render object: the arbiter reads detents and writes an extent, and the box
+  // hears about it the way every other listener does. An allowance that let
+  // `scroll/` name `RenderPanelViewport` is how "the panel resizes without the
+  // widget tree hearing about it" becomes "…except when a list is being
+  // dragged", and the two layers would then have to be built in one order.
+  //
+  // `gestures.dart` is here because `Drag` and `DragUpdateDetails` are the
+  // interface a `ScrollPosition` hands back to a recogniser, and `widgets.dart`
+  // — unlike `rendering.dart` — does not re-export them. `scheduler.dart` is
+  // the fused fling's one `Ticker`.
+  //
+  // `rendering.dart` is here for exactly one name, and it grants nothing this
+  // layer did not already have: `widgets.dart` is built on top of it, so every
+  // symbol was already reachable — it re-exports `rendering.dart` for
+  // `TextSelectionHandleType` and nothing else. `ScrollDirection` is the one
+  // `position.dart` needs, because `ScrollPosition.updateUserScrollDirection`
+  // takes one and a subclass that cannot name it cannot publish a direction.
+  // It is imported `show ScrollDirection`, which is the narrower guard this
+  // row cannot express.
+  'scroll': (
+    packages: {
+      'package:meta/meta.dart',
+      'package:flutter/physics.dart',
+      'package:flutter/gestures.dart',
+      'package:flutter/rendering.dart',
+      'package:flutter/scheduler.dart',
+      'package:flutter/widgets.dart',
+    },
+    layers: {'geometry', 'physics', 'model', 'scroll'},
+  ),
 };
 
 /// Files that may not reach `package:flutter/widgets.dart`, and why each one
@@ -86,7 +117,22 @@ const _allowances = <String, ({Set<String> packages, Set<String> layers})>{
 /// wider import would still compile and still pass the layer check above. That
 /// is precisely why this list is separate: the failure is invisible to the
 /// coarser test.
-const _widgetFreeFiles = <String>{'lib/src/render/render_panel.dart'};
+///
+/// The two `scroll/` entries are here for a different reason from the render
+/// object's, and it is worth stating because it is a reason with an expiry date.
+/// DESIGN.md §6 files `fused_axis.dart` and `fused_simulation.dart` under
+/// `physics/`, which may import no binding at all; they are in `scroll/` only
+/// because `physics/` was committed before this slice and this slice does not
+/// own it. Keeping them unable to reach a `BuildContext` is the closest this
+/// directory can come to the allowance they are supposed to live under, and it
+/// is what makes moving them later a `git mv` and one row here rather than an
+/// unpicking. Both are pure maths over `geometry/`: a `FusedAxis` is two spans
+/// and a seam, and a `FusedSimulation` is friction then a spring.
+const _widgetFreeFiles = <String>{
+  'lib/src/render/render_panel.dart',
+  'lib/src/physics/fused_axis.dart',
+  'lib/src/physics/fused_simulation.dart',
+};
 
 /// The URI of an `import`/`export` directive, or null if the line is neither.
 ///

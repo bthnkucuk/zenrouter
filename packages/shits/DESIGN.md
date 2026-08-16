@@ -1538,9 +1538,16 @@ owed.
 
 What was observed:
 
-1. **A sheet does open over a sheet, and the lower one stays alive.** The account sheet is
-   presented above the search sheet; the search sheet's content is visible *through* the
-   upper sheet's translucent material rather than being torn down.
+1. **A sheet does open over a sheet, and the lower one stays alive — but it is not
+   visible.** Corrected by the owner, who was watching the device: only one sheet is ever
+   on screen. What shows through the upper sheet's translucent material is the **map**, not
+   the sheet below it — the blurred colours are the map's POI pins and its park, which is
+   what misled the first reading of the screenshot. The lower sheet's survival is proved by
+   its exact restoration on dismissal (point 4), not by anything painted.
+
+   The design consequence is a simplification: a stack of panels does not composite two
+   translucent surfaces, and nothing may assume the panel below is being seen. Whatever a
+   panel's material blurs, it blurs what is behind the **whole stack**.
 2. **The background is not dimmed.** The map behind both sheets is at full brightness with
    no scrim — so "sheet over sheet" and "dimmed" are independent, and B3/B4's dimming and
    hit-testing being one mechanism must be able to answer *no dimming at all* while a modal

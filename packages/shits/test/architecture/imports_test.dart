@@ -101,6 +101,44 @@ const _allowances = <String, ({Set<String> packages, Set<String> layers})>{
     },
     layers: {'geometry', 'physics', 'model', 'scroll'},
   ),
+  // The layer that sits on every other one, and the only one allowed to. It
+  // creates the model, installs the render object and the scroll attachment,
+  // and publishes the panel's position.
+  //
+  // `scheduler.dart` is here for two names and no more. DESIGN.md §6 says it is
+  // for the `Ticker`, and that is where the clock is *specified* to live;
+  // `scroll/attachment.dart` holds one already and there must not be two, so
+  // today it is here for `SchedulerPhase` and `SchedulerBinding` instead —
+  // `PanelController` needs to know whether a frame is currently being built
+  // before it announces that the panel moved. See `widgets/panel.dart`'s
+  // `_PanelState` for the whole of that, and for what moving the ticker back
+  // costs. `widgets.dart` does not re-export `scheduler.dart`, so this row is
+  // load-bearing either way.
+  //
+  // **No `package:meta`**: `foundation.dart` carries `@immutable` and
+  // `@internal` already, and an allowance wider than the layer uses is the door
+  // held open for the import nobody thought to ban — which is the reason this
+  // test is an allow-list at all.
+  //
+  // **No `material.dart` and no `cupertino.dart`, and that is the interesting
+  // half.** A content scaffold is one `Material` away from being a Material
+  // widget, a bottom bar is one `BottomAppBar` away, and either would make the
+  // package's own scope line — chrome is out — false in the one directory an
+  // app actually touches. The panel lays boxes out and publishes state; what
+  // those boxes are painted with is the app's.
+  //
+  // It reaches every layer below it because it is what assembles them: the
+  // model from `model/`, `PanelViewport` from `render/`, `PanelScrollLink` and
+  // `PanelScrollAttachment` from `scroll/`, and the whole geometry vocabulary
+  // that `Panel`'s own arguments are written in.
+  'widgets': (
+    packages: {
+      'package:flutter/foundation.dart',
+      'package:flutter/scheduler.dart',
+      'package:flutter/widgets.dart',
+    },
+    layers: {'geometry', 'physics', 'model', 'render', 'scroll', 'widgets'},
+  ),
 };
 
 /// Files that may not reach `package:flutter/widgets.dart`, and why each one

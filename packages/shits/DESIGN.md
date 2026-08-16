@@ -1528,3 +1528,36 @@ wrong, and silently: the second sheet would push onto the first one's stack.
 
 None of this is in scope for `shits`, which knows nothing about any router. It is written
 down so the eventual adapter does not start from the retired idea.
+
+### A6.1a — First observations from the Maps walk (iOS 26.5 simulator, iPhone 17 Pro)
+
+Walked rather than remembered, on the 402×874 device the detent research measured. **This is
+a partial walk** — one path only: search sheet at rest → account sheet over it → dismissed by
+drag. The detents, the keyboard, the place cards and the scroll-position question are still
+owed.
+
+What was observed:
+
+1. **A sheet does open over a sheet, and the lower one stays alive.** The account sheet is
+   presented above the search sheet; the search sheet's content is visible *through* the
+   upper sheet's translucent material rather than being torn down.
+2. **The background is not dimmed.** The map behind both sheets is at full brightness with
+   no scrim — so "sheet over sheet" and "dimmed" are independent, and B3/B4's dimming and
+   hit-testing being one mechanism must be able to answer *no dimming at all* while a modal
+   sheet is up.
+3. **The two sheets have different attachments at the same moment.** The lower one is
+   edge-attached — it runs to the bottom of the screen. The upper one is floating: inset on
+   both sides and clear of the bottom edge, with all four corners rounded. **So
+   `EdgeAttachment` is a property of a panel, not of an app or a platform**, and two panels
+   with different attachments are on screen together. Nothing in this document said that
+   before; it was written as if a placement picked one.
+4. **Dismissing the upper sheet restores the lower one exactly** — same detent, same content,
+   nothing re-run.
+5. The upper sheet carries an explicit close button *as well as* drag-to-dismiss.
+
+**The side and bottom insets were eyeballed off a screenshot and are deliberately not
+recorded as numbers here.** They looked to be roughly 13pt at the sides and ~19pt at the
+bottom, which does not match the ~8.33pt the research reports for iOS 26 (V4) — the
+discrepancy is exactly why V4 and V6 want a real measurement through
+`resolvedValue(in:)` and the presented frame, not a pixel count off an image. Do not turn
+these into constants.

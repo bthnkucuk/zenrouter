@@ -1493,3 +1493,38 @@ the common case. So:
 The acceptance rows are #18 `textfield_with_multiple_stops`, #15 `paged_sheet_and_keyboard`
 and #29 `content_sized_above_keyboard`. A port that reproduces the manual padding has failed
 the row, however well it renders.
+
+## A8. A sheet is a route, not a place — so there is no `SheetPath`
+
+Raised by the owner, and it retires an idea an earlier plan carried. A "sheet path" — one
+named stack the app's sheets live on — is the wrong shape, because a sheet is not a place in
+an app's navigation. It is a route, and:
+
+- the same sheet type appears at many paths at once (`/product/1`, `/product/2`) — those are
+  two routes with different parameters, not two places;
+- **several sheets can be open together**, stacked, which is the Maps recipe this design
+  claims to support;
+- and a *paged* sheet's inner navigation is a genuine nested stack — but **one per sheet
+  instance**.
+
+That last point is the constraint anything integrating with zenrouter must design against.
+`RouteLayout.resolvePath(coordinator)` returns a stack owned by the *coordinator* — every
+example in this repo returns `coordinator.someStack` — so two live instances of one layout
+type share a single path. For a shell that is correct and deliberate. For a sheet it is
+wrong, and silently: the second sheet would push onto the first one's stack.
+
+**Consequences, in order of how soon they bite:**
+
+1. **The ordinary case needs no path at all.** A sheet sits on whatever stack already exists,
+   as a `Page` — which is the shape this package exposes and the one the owner sketched
+   before any of this was designed. No new path type, and therefore nothing to get wrong.
+2. **Paged sheets need a per-instance nested stack**, and that is an integration problem for
+   an adapter rather than a problem for this package: the inner `Navigator` belongs to the
+   sheet instance by construction here.
+3. **Identity, one layer down, is the same problem and we have already hit it.** Two
+   instances of the same route on one stack collided on their restoration ids until a repeat
+   was given its own occurrence suffix (`ec1cfea` in this repo). Anything that keys a sheet
+   by its type rather than by its instance will meet that again.
+
+None of this is in scope for `shits`, which knows nothing about any router. It is written
+down so the eventual adapter does not start from the retired idea.
